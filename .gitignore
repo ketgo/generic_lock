@@ -30,3 +30,16 @@
 *.exe
 *.out
 *.app
+
+# VSCode
+.vscode/
+
+# Built Binaries
+bin/*
+build/*
+
+# Temparary
+tmp/*
+
+# MacOS
+.DS_Store

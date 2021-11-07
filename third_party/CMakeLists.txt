@@ -11,16 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-#   Bazel build for Generic Lock
 
-package(default_visibility = ["//visibility:public"])
+cmake_minimum_required(VERSION 3.1)
 
-licenses(["notice"])
+# Update git submodules
+include(GitSubmodules)
 
-exports_files(["LICENSE"])
-
-cc_library(
-    name = "generic_lock",
-    hdrs = glob(["include/*"]),
-)
+# List of dependencies
+add_subdirectory(googletest)
