@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef GENERIC_LOCK__DEPENDENCY_GRAPH_HPP
-#define GENERIC_LOCK__DEPENDENCY_GRAPH_HPP
+#ifndef GENERIC_LOCK__DETAILS__DEPENDENCY_GRAPH_HPP
+#define GENERIC_LOCK__DETAILS__DEPENDENCY_GRAPH_HPP
 
 #include <unordered_map>
 
 namespace gl {
+namespace details {
 
 /**
  * @brief Directed graph used to track depedency between different concurrently
@@ -210,6 +211,7 @@ class DependencyGraph {
   std::unordered_map<T, std::unordered_map<T, bool>> _dependency_map;
 };
 
+}  // namespace details
 }  // namespace gl
 
-#endif /* GENERIC_LOCK__DEPENDENCY_GRAPH_HPP */
+#endif /* GENERIC_LOCK__DETAILS__DEPENDENCY_GRAPH_HPP */

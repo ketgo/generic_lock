@@ -19,11 +19,11 @@
 
 #include <gtest/gtest.h>
 
-#include <generic_lock/dependency_graph.hpp>
+#include <generic_lock/details/dependency_graph.hpp>
 
-using namespace gl;
+using namespace gl::details;
 
-class UtilsDependencyGraphTestFixture : public ::testing::Test {
+class DependencyGraphTestFixture : public ::testing::Test {
  protected:
   DependencyGraph<size_t> graph;
 
@@ -31,7 +31,7 @@ class UtilsDependencyGraphTestFixture : public ::testing::Test {
   void TearDown() override {}
 };
 
-TEST_F(UtilsDependencyGraphTestFixture, TestAddRemoveEdge) {
+TEST_F(DependencyGraphTestFixture, TestAddRemoveEdge) {
   graph.Add(1, 2);
   ASSERT_TRUE(graph.IsDependent(1, 2));
 
@@ -51,7 +51,7 @@ TEST_F(UtilsDependencyGraphTestFixture, TestAddRemoveEdge) {
   ASSERT_FALSE(graph.IsDependent(4, 1));
 }
 
-TEST_F(UtilsDependencyGraphTestFixture, TestDetectCycleExists) {
+TEST_F(DependencyGraphTestFixture, TestDetectCycleExists) {
   std::set<size_t> cycle = {2, 5, 6, 7};
 
   graph.Add(1, 2);
@@ -75,7 +75,7 @@ TEST_F(UtilsDependencyGraphTestFixture, TestDetectCycleExists) {
   graph.DetectCycle(7, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); });
 }
 
-TEST_F(UtilsDependencyGraphTestFixture, TestDetectNoCycle) {
+TEST_F(DependencyGraphTestFixture, TestDetectNoCycle) {
   graph.Add(1, 2);
   graph.Add(2, 3);
   graph.Add(3, 4);
