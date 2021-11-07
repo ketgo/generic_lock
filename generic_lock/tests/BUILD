@@ -21,7 +21,7 @@ cc_test(
         "src/*.hpp",
     ]),
     deps = [
-        "//generic_lock",
+        "//generic_lock:generic_lock",
         "@gtest//:gtest",
     ],
 )

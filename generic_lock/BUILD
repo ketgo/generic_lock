@@ -22,6 +22,7 @@ exports_files(["LICENSE"])
 
 cc_library(
     name = "generic_lock",
-    hdrs = glob(["include/*"]),
+    hdrs = glob(["include/**"]),
+    includes = ["include"],
     copts = ["-std:c++17"],
 )
