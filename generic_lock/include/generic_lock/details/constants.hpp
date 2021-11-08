@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef GENERIC_LOCK__VERSION_HPP_IN
-#define GENERIC_LOCK__VERSION_HPP_IN
+#ifndef GENERIC_LOCK__DETAILS__CONSTANTS_HPP
+#define GENERIC_LOCK__DETAILS__CONSTANTS_HPP
 
-#define GENERIC_LOCK_VERSION_MAJOR "0"
-#define GENERIC_LOCK_VERSION_MINOR "0"
-#define GENERIC_LOCK_VERSION_PATCH "1"
-#define GENERIC_LOCK_VERSION_TWEAK ""
-#define GENERIC_LOCK_VERSION "0.0.1"
+namespace gl {
+namespace details {
 
-#endif /* GENERIC_LOCK__VERSION_HPP_IN */
+// Null thread identifier
+static constexpr int null_id = 0
+
+}  // namespace details
+}  // namespace gl
+
+#endif /* GENERIC_LOCK__DETAILS__CONSTANTS_HPP */
