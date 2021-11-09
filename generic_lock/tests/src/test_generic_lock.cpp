@@ -25,11 +25,13 @@ using namespace gl;
 
 class GenericLockTestFixture : public ::testing::Test {
  protected:
+  typedef size_t RecordId;
+
   enum class LockMode { READ, WRITE };
   const ContentionMatrix<2> contention_matrix = {
       {{{false, true}}, {{true, true}}}};
 
-  GenericLock<size_t, 2> lock = {contention_matrix};
+  GenericLock<RecordId, LockMode, 2> lock = {contention_matrix};
 
   void SetUp() override {}
   void TearDown() override {}

@@ -13,39 +13,46 @@
 // limitations under the License.
 
 /**
- * @brief Uint Test Lock Request Queue
+ * @brief Uint Test Lock Request Group
  *
  */
 
 #include <gtest/gtest.h>
 
-#include <generic_lock/details/lock_request_queue.hpp>
+#include <generic_lock/details/lock_request_group.hpp>
 
 using namespace gl::details;
 
-class LockRequestQueueTestFixture : public ::testing::Test {
+class LockRequestGroupTestFixture : public ::testing::Test {
  protected:
+  typedef size_t ThreadId;
   enum class LockMode { READ, WRITE };
   const ContentionMatrix<2> contention_matrix = {
       {{{false, true}}, {{true, true}}}};
 
-  LockRequestQueue<LockMode, 2, size_t> queue = {contention_matrix};
+  LockRequestGroup<LockMode, 2, ThreadId> group;
 
   void SetUp() override {}
   void TearDown() override {}
 };
 
-TEST_F(LockRequestQueueTestFixture, EmplaceRequest) {
-  // Emplace request into an empty queue
-  auto result = queue.EmplaceRequest(LockMode::READ, 1);
-  ASSERT_EQ(result, queue.null_group_id + 1);
+TEST_F(LockRequestGroupTestFixture, EmplaceGetRequest) {
+  // Emplace request into an empty group
+  ASSERT_TRUE(group.EmplaceRequest(LockMode::READ, 1, contention_matrix));
 
   // Another request from the same thread
-  ASSERT_EQ(queue.EmplaceRequest(LockMode::WRITE, 1), queue.null_group_id);
+  ASSERT_FALSE(group.EmplaceRequest(LockMode::READ, 1, contention_matrix));
 
   // Emplace request in agreement with the last group
-  ASSERT_EQ(queue.EmplaceRequest(LockMode::READ, 2), result);
+  ASSERT_TRUE(group.EmplaceRequest(LockMode::READ, 2, contention_matrix));
 
   // Emplace request in contention with the last group
-  ASSERT_EQ(queue.EmplaceRequest(LockMode::WRITE, 3), result + 1);
+  ASSERT_FALSE(group.EmplaceRequest(LockMode::WRITE, 3, contention_matrix));
+
+  ASSERT_EQ(group.Size(), 2);
+  ASSERT_EQ(group.GetLockRequest(1).mode, LockMode::READ);
+  ASSERT_FALSE(group.GetLockRequest(1).IsDenied());
+
+  group.GetLockRequest(1).Deny();
+  ASSERT_TRUE(group.GetLockRequest(1).IsDenied());
 }
