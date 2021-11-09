@@ -31,16 +31,17 @@ namespace gl {
  * contention matrix for the lock will be:
  *
  * @example
- * enum class LockMode { READ, WRITE };
- * const ContentionMatrix<LockMode> contention_matrix = {
- *  {LockMode::READ, {{LockMode::READ, false}, {LockMode::WRITE, true}}},
- *  {LockMode::WRITE, {{LockMode::READ, true}, {LockMode::WRITE, true}}}
- * };
+ * enum class LockMode { READ, WRITE=1 };
+ * const ContentionMatrix<2> contention_matrix = {{
+ *  // LockMode::READ, LockMode::WRITE
+ *  {{false, true}}, // LockMode::READ
+ *  {{true, true}}  // LockMode::WRITE
+ * }};
  *
- * @tparam LockModeType The type of lock mode.
+ * @tparam modes_count The number of lock modes.
  */
-template <class LockModeType>
-using ContentionMatrix = details::ContentionMatrix<LockModeType>;
+template <size_t modes_count>
+using ContentionMatrix = details::ContentionMatrix<modes_count>;
 
 // TODO: Find better way of passing the lock modes and contention matrix to the
 // generic lock.
@@ -69,19 +70,21 @@ using ContentionMatrix = details::ContentionMatrix<LockModeType>;
  * hashable.
  *
  * @tparam RecordIdType The record identifier type.
- * @tparam LockModeType The lock mode type.
+ * @tparam modes_count The number of lock modes.
  * @tparam ThreadIdType The thread identifier type. Default set to
  * `std::thread::id`.
  */
-template <class RecordIdType, class LockModeType,
+template <class RecordIdType, size_t modes_count,
           class ThreadIdType = std::thread::id>
 class GenericLock {
+  typedef unsigned int LockMode;
+
  public:
   /**
    * @brief Construct a new Generic Lock object.
    *
    */
-  GenericLock(const ContentionMatrix<LockModeType>& contention_matrix)
+  GenericLock(const ContentionMatrix<modes_count>& contention_matrix)
       : _contention_matrix(contention_matrix) {}
 
   // Lock not copyable
@@ -98,7 +101,7 @@ class GenericLock {
    * @return true
    * @return false
    */
-  bool Lock(const RecordIdType& record_id, const LockModeType& mode,
+  bool Lock(const RecordIdType& record_id, const LockMode& mode,
             const ThreadIdType& thread_id = std::this_thread::get_id());
 
   /**
@@ -110,7 +113,7 @@ class GenericLock {
    * @return true
    * @return false
    */
-  bool TryLock(const RecordIdType& record_id, const LockModeType& mode,
+  bool TryLock(const RecordIdType& record_id, const LockMode& mode,
                const ThreadIdType& thread_id = std::this_thread::get_id());
 
   /**
@@ -125,7 +128,7 @@ class GenericLock {
               const ThreadIdType& thread_id = std::this_thread::get_id());
 
  private:
-  const ContentionMatrix<LockModeType> _contention_matrix;
+  const ContentionMatrix<modes_count> _contention_matrix;
 };
 
 }  // namespace gl

@@ -26,14 +26,15 @@ using namespace gl::details;
 class LockRequestQueueTestFixture : public ::testing::Test {
  protected:
   enum class LockMode { READ, WRITE };
-  const ContentionMatrix<LockMode> contention_matrix = {
-      {LockMode::READ, {{LockMode::READ, false}, {LockMode::WRITE, true}}},
-      {LockMode::WRITE, {{LockMode::READ, true}, {LockMode::WRITE, true}}}};
+  const ContentionMatrix<2> contention_matrix = {
+      {{{false, true}}, {{true, true}}}};
 
-  LockRequestQueue<LockMode, size_t> queue = {contention_matrix};
+  LockRequestQueue<2, size_t> queue = {contention_matrix};
 
   void SetUp() override {}
   void TearDown() override {}
 };
 
-TEST_F(LockRequestQueueTestFixture, EmplaceRequest) {}
+TEST_F(LockRequestQueueTestFixture, EmplaceRequest) {
+  queue.EmplaceRequest(int(LockMode::READ), 1);
+}

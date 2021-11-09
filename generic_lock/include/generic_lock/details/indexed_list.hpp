@@ -104,28 +104,28 @@ class IndexedList {
    *
    * @returns Reference to the front node.
    */
-  Node& Front() { return _list.front().value; }
+  Node& Front() { return _list.front(); }
 
   /**
    * @brief Get the key-value pair at the begining of the list.
    *
    * @returns Constant reference to the front node.
    */
-  const Node& Front() const { return _list.front().value; }
+  const Node& Front() const { return _list.front(); }
 
   /**
    * @brief Get the key-value pair at the end of the list.
    *
    * @returns Reference to the end node.
    */
-  Node& Back() { return _list.back().value; }
+  Node& Back() { return _list.back(); }
 
   /**
    * @brief Get the key-value pair at the end of the list.
    *
    * @returns Constant reference to the end node.
    */
-  const Node& Back() const { return _list.back().value; }
+  const Node& Back() const { return _list.back(); }
 
   /**
    * @brief Find the value associated with the given key. This is an O(1)

@@ -30,11 +30,13 @@ namespace details {
  * each other, i.e. they can be granted simultaneously. Each request is indexed
  * on the thread identifier and its group identifier.
  *
- * @tparam LockModeType The type of lock mode.
+ * @tparam modes_count The number of lock modes.
  * @tparam ThreadIdType The type of thread identifier.
  */
-template <class LockModeType, class ThreadIdType>
+template <size_t modes_count, class ThreadIdType>
 class LockRequestQueue {
+  typedef unsigned int LockMode;
+
  public:
   /**
    * @brief Lock request data structure contining information of the request
@@ -47,10 +49,10 @@ class LockRequestQueue {
      *
      * @param mode Constant reference to the lock mode.
      */
-    LockRequest(const LockModeType& mode) : mode(mode), denied(false) {}
+    LockRequest(const LockMode& mode) : mode(mode), denied(false) {}
 
     // The lock mode requested.
-    LockModeType mode;
+    LockMode mode;
     // Flag indicating if the request should be denied. This is set to true if
     // the request causes a deadlock.
     bool denied;
@@ -81,8 +83,9 @@ class LockRequestQueue {
      * @param contention_matrix Constant reference to the contention matrix.
      * @returns `true` on success else `false`.
      */
-    bool EmplaceBack(const LockModeType& mode, const ThreadIdType& thread_id,
-                     const ContentionMatrix<LockModeType>& contention_matrix) {
+    bool EmplaceRequest(
+        const LockMode& mode, const ThreadIdType& thread_id,
+        const ContentionMatrix<modes_count>& contention_matrix) {
       // Check for contention with all the member sof the group
       auto it = requests.Begin();
       while (it != requests.End()) {
@@ -119,7 +122,7 @@ class LockRequestQueue {
    *
    * @param contention_matrix Constant reference to the contention matrix.
    */
-  LockRequestQueue(const ContentionMatrix<LockModeType>& contention_matrix)
+  LockRequestQueue(const ContentionMatrix<modes_count>& contention_matrix)
       : _contention_matrix(contention_matrix), _group_map(), _groups() {}
 
   /**
@@ -136,21 +139,12 @@ class LockRequestQueue {
    * @returns Constant reference to the identifier of the group to which the
    * emplaced request belongs.
    */
-  const LockRequestGroupId& EmplaceRequest(const LockModeType& mode,
+  const LockRequestGroupId& EmplaceRequest(const LockMode& mode,
                                            const ThreadIdType& thread_id) {
     // If no group exist in the queue then create a new group and emplace
     // the request in it
     if (_groups.Empty()) {
-      // Creates an empty request group
-      auto result = _groups.EmplaceBack(null_group_id + 1);
-      // Assert that we were able to create the empty group.
-      assert(result.second);
-      // Emplace the request into the group
-      result.first->value.EmplaceBack(mode, thread_id, _contention_matrix);
-      // Record the mapping between the thread and the new group identifier
-      _group_map[thread_id] = result.first->key;
-      // Return the new group identifier
-      return result.first->key;
+      return EmplaceNewRequestGroup(null_group_id + 1, mode, thread_id);
     }
 
     // Check that a prior request by the same thread does not exist
@@ -163,22 +157,13 @@ class LockRequestQueue {
     // No prior request exists so try to emplace the new request into the last
     // group
     auto& last_group = _groups.Back();
-    if (last_group.value.EmplaceBack(mode, thread_id, _contention_matrix)) {
+    if (last_group.value.EmplaceRequest(mode, thread_id, _contention_matrix)) {
       return last_group.key;
     }
 
     // Could not emplace into the last group so create a new group and emplace
     // the request in it
-    // Creates an empty request group
-    auto result = _groups.EmplaceBack(last_group.key + 1);
-    // Assert that we were able to create the empty group.
-    assert(result.second);
-    // Emplace the request into the group
-    result.first->value.EmplaceBack(mode, thread_id, _contention_matrix);
-    // Record the mapping between the thread and the new group identifier
-    _group_map[thread_id] = result.first->key;
-    // Return the new group identifier
-    return result.first->key;
+    return EmplaceNewRequestGroup(last_group.key + 1, mode, thread_id);
   }
 
   LockRequest& Request(const ThreadIdType& thread_id) {}
@@ -197,13 +182,37 @@ class LockRequestQueue {
       const LockRequestGroupId& group_id) const {}
 
  private:
+  /**
+   * @brief Emplace a new request group into the queue and emplace a new lock
+   * request into the newly created group.
+   *
+   * @param group_id Constant reference to the new group identifier.
+   * @param mode Constant reference to the lock mode.
+   * @param thread_id Constant reference to the thread identifier.
+   * @returns Constant reference to the newly created group identifier.
+   */
+  const LockRequestGroupId& EmplaceNewRequestGroup(
+      const LockRequestGroupId& group_id, const LockMode& mode,
+      const ThreadIdType& thread_id) {
+    // Creates an empty request group
+    auto result = _groups.EmplaceBack(group_id);
+    // Assert that we were able to create the empty group.
+    assert(result.second);
+    // Emplace the request into the group
+    result.first->value.EmplaceRequest(mode, thread_id, _contention_matrix);
+    // Record the mapping between the thread and the new group identifier
+    _group_map[thread_id] = group_id;
+    // Return the new group identifier
+    return group_id;
+  }
+
   // List of lock request groups indexed on their group identifier
   IndexedList<LockRequestGroupId, LockRequestGroup> _groups;
   // Map between the thread identifiers and the associated lock request group
   // identifier.
   std::unordered_map<ThreadIdType, LockRequestGroupId> _group_map;
   // Contention matrix for creating lock request groups
-  const ContentionMatrix<LockModeType>& _contention_matrix;
+  const ContentionMatrix<modes_count>& _contention_matrix;
 };
 
 }  // namespace details

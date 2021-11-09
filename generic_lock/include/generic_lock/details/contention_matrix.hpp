@@ -15,7 +15,7 @@
 #ifndef GENERIC_LOCK__DETAILS__CONTENTION_MATRIX_HPP
 #define GENERIC_LOCK__DETAILS__CONTENTION_MATRIX_HPP
 
-#include <unordered_map>
+#include <array>
 
 namespace gl {
 namespace details {
@@ -27,17 +27,17 @@ namespace details {
  * contention matrix for the lock will be:
  *
  * @example
- * enum class LockMode { READ, WRITE };
- * const ContentionMatrix<LockMode> contention_matrix = {
- *  {LockMode::READ, {{LockMode::READ, false}, {LockMode::WRITE, true}}},
- *  {LockMode::WRITE, {{LockMode::READ, true}, {LockMode::WRITE, true}}}
- * };
+ * enum class LockMode { READ, WRITE=1 };
+ * const ContentionMatrix<2> contention_matrix = {{
+ *  // LockMode::READ, LockMode::WRITE
+ *  {{false, true}}, // LockMode::READ
+ *  {{true, true}}  // LockMode::WRITE
+ * }};
  *
- * @tparam LockModeType The type of lock mode.
+ * @tparam modes_count The number of lock modes.
  */
-template <class LockModeType>
-using ContentionMatrix =
-    std::unordered_map<LockModeType, std::unordered_map<LockModeType, bool>>;
+template <size_t modes_count>
+using ContentionMatrix = std::array<std::array<bool, modes_count>, modes_count>;
 
 }  // namespace details
 }  // namespace gl
