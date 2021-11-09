@@ -75,8 +75,8 @@ class LockRequestQueue {
    * @returns Constant reference to the identifier of the group to which the
    * emplaced request belongs.
    */
-  const LockRequestGroupId& EmplaceRequest(const LockModeType& mode,
-                                           const ThreadIdType& thread_id) {
+  const LockRequestGroupId& EmplaceLockRequest(const LockModeType& mode,
+                                               const ThreadIdType& thread_id) {
     // If no group exist in the queue then create a new group and emplace
     // the request in it
     if (_groups.Empty()) {
@@ -92,7 +92,8 @@ class LockRequestQueue {
     // No prior request exists so try to emplace the new request into the last
     // group
     auto& last_group = _groups.Back();
-    if (last_group.value.EmplaceRequest(mode, thread_id, _contention_matrix)) {
+    if (last_group.value.EmplaceLockRequest(mode, thread_id,
+                                            _contention_matrix)) {
       return last_group.key;
     }
 
@@ -101,20 +102,52 @@ class LockRequestQueue {
     return EmplaceNewRequestGroup(last_group.key + 1, mode, thread_id);
   }
 
-  LockRequest& Request(const ThreadIdType& thread_id) {}
-  const LockRequest& Request(const ThreadIdType& thread_id) const {}
+  /**
+   * @brief Get the lock request in the queue for the given thread identifier. A
+   * `std::out_of_range` exception is thrown if no request exists.
+   *
+   * @param thread_id Constant reference to the thread identifier.
+   * @returns Reference to the lock request.
+   */
+  LockRequest& GetLockRequest(const ThreadIdType& thread_id) {
+    auto& group_id = _group_id_map.at(thread_id);
+    return _groups.At(group_id).GetLockRequest(thread_id);
+  }
 
-  bool RemoveRequest(const ThreadIdType& thread_id) {}
-  void DenyRequest(const ThreadIdType& thread_id) {}
-  bool RequestDenied(const ThreadIdType& thread_id) const {}
+  /**
+   * @brief Get the lock request in the queue for the given thread identifier. A
+   * `std::out_of_range` exception is thrown if no request exists.
+   *
+   * @param thread_id Constant reference to the thread identifier.
+   * @returns Constant Reference to the lock request.
+   */
+  const LockRequest& GetLockRequest(const ThreadIdType& thread_id) const {
+    auto& group_id = _group_id_map.at(thread_id);
+    return _groups.At(group_id).GetLockRequest(thread_id);
+  }
 
-  LockRequestGroupId& RequestGroupId(const ThreadIdType& thread_id) {}
-  const LockRequestGroupId& RequestGroupId(
-      const ThreadIdType& thread_id) const {}
+  /**
+   * @brief Remove a request for the given thread identifier from the queue. A
+   * `std::out_of_range` exception is thrown if no request exists.
+   *
+   * @param thread_id Constant reference to the thread identifier.
+   */
+  void RemoveLockRequest(const ThreadIdType& thread_id) {
+    auto& group_id = _group_id_map.at(thread_id);
+    _groups.At(group_id).RemoveLockRequest(thread_id);
+    _group_id_map.erase(thread_id);
+  }
 
-  LockRequestGroup& RequestGroup(const LockRequestGroupId& group_id) {}
-  const LockRequestGroup& RequestGroup(
-      const LockRequestGroupId& group_id) const {}
+  /**
+   * @brief Get the lock request group identifier for the given thread
+   * identifier.
+   *
+   * @param thread_id Constant reference to the thread identifier.
+   * @returns Constant reference to the lock request group identifier.
+   */
+  const LockRequestGroupId& GetGroupId(const ThreadIdType& thread_id) const {
+    return _group_id_map.at(thread_id);
+  }
 
  private:
   /**
@@ -134,7 +167,7 @@ class LockRequestQueue {
     // Assert that we were able to create the empty group.
     assert(result.second);
     // Emplace the request into the group
-    result.first->value.EmplaceRequest(mode, thread_id, _contention_matrix);
+    result.first->value.EmplaceLockRequest(mode, thread_id, _contention_matrix);
     // Record the mapping between the thread and the new group identifier
     _group_id_map[thread_id] = result.first->key;
     // Return the new group identifier

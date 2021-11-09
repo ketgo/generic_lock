@@ -52,13 +52,14 @@ class LockRequestGroup {
    * @param contention_matrix Constant reference to the contention matrix.
    * @returns `true` on success else `false`.
    */
-  bool EmplaceRequest(const LockModeType& mode, const ThreadIdType& thread_id,
-                      const ContentionMatrix<modes_count>& contention_matrix) {
+  bool EmplaceLockRequest(
+      const LockModeType& mode, const ThreadIdType& thread_id,
+      const ContentionMatrix<modes_count>& contention_matrix) {
     // Check for contention with all the requests in the group which are not in
     // a denied state.
     auto it = _requests.Begin();
     while (it != _requests.End()) {
-      if (contention_matrix[int(it->value.mode)][int(mode)] &&
+      if (contention_matrix[int(it->value.GetMode())][int(mode)] &&
           !it->value.IsDenied()) {
         // Contention found with a request so return false.
         return false;
@@ -93,11 +94,29 @@ class LockRequestGroup {
   }
 
   /**
+   * @brief Remove lock request for the given thread identifier from the group.
+   * If no request exists for the thread identifier then a `std::out_of_range`
+   * exception is thrown.
+   *
+   * @param thread_id Constant reference to the thread identifier.
+   */
+  void RemoveLockRequest(const ThreadIdType& thread_id) {
+    _requests.Erase(thread_id);
+  }
+
+  /**
    * @brief Get the number of requests in the group.
    *
    * @returns Number of requests in the group.
    */
   size_t Size() const { return _requests.Size(); }
+
+  /**
+   * @brief Check if the request group is empty.
+   *
+   * @returns `true` if empty else `false`.
+   */
+  bool Empty() const { return _requests.Empty(); }
 
  private:
   // Indexed list of lock requests which are part of the group.

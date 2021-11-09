@@ -25,32 +25,54 @@ namespace details {
  * @tparam LockModeType The lock mode type.
  */
 template <class LockModeType>
-struct LockRequest {
+class LockRequest {
+ public:
   /**
    * @brief Construct a new Lock Request object.
    *
    * @param mode Constant reference to the lock mode.
    */
-  LockRequest(const LockModeType& mode) : mode(mode), denied(false) {}
+  LockRequest(const LockModeType& mode) : _mode(mode), _denied(false) {}
+
+  /**
+   * @brief Get the requested lock mode.
+   *
+   * @returns Constant reference to the lock mode.
+   */
+  const LockModeType& GetMode() const { return _mode; }
+
+  /**
+   * @brief set the requested lock mode.
+   *
+   * @returns Constant reference to the lock mode.
+   */
+  void SetMode(const LockModeType& mode) { _mode = mode; }
 
   /**
    * @brief Set the lock request as denied.
    *
    */
-  void Deny() { denied = true; }
+  void Deny() { _denied = true; }
+
+  /**
+   * @brief Set the lock request as approved.
+   *
+   */
+  void Approve() { _denied = false; }
 
   /**
    * @brief Check if the lock request is denied.
    *
    * @returns `true` if denied else `false`.
    */
-  bool IsDenied() const { return denied; }
+  bool IsDenied() const { return _denied; }
 
+ private:
   // The lock mode requested.
-  LockModeType mode;
+  LockModeType _mode;
   // Flag indicating if the request should be denied. This is set to true if
   // the request causes a deadlock.
-  bool denied;
+  bool _denied;
 };
 
 }  // namespace details

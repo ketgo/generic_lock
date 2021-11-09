@@ -38,21 +38,40 @@ class LockRequestGroupTestFixture : public ::testing::Test {
 
 TEST_F(LockRequestGroupTestFixture, EmplaceGetRequest) {
   // Emplace request into an empty group
-  ASSERT_TRUE(group.EmplaceRequest(LockMode::READ, 1, contention_matrix));
+  ASSERT_TRUE(group.EmplaceLockRequest(LockMode::READ, 1, contention_matrix));
 
   // Another request from the same thread
-  ASSERT_FALSE(group.EmplaceRequest(LockMode::READ, 1, contention_matrix));
+  ASSERT_FALSE(group.EmplaceLockRequest(LockMode::READ, 1, contention_matrix));
 
   // Emplace request in agreement with the last group
-  ASSERT_TRUE(group.EmplaceRequest(LockMode::READ, 2, contention_matrix));
+  ASSERT_TRUE(group.EmplaceLockRequest(LockMode::READ, 2, contention_matrix));
 
   // Emplace request in contention with the last group
-  ASSERT_FALSE(group.EmplaceRequest(LockMode::WRITE, 3, contention_matrix));
+  ASSERT_FALSE(group.EmplaceLockRequest(LockMode::WRITE, 3, contention_matrix));
 
   ASSERT_EQ(group.Size(), 2);
-  ASSERT_EQ(group.GetLockRequest(1).mode, LockMode::READ);
+  ASSERT_EQ(group.GetLockRequest(1).GetMode(), LockMode::READ);
   ASSERT_FALSE(group.GetLockRequest(1).IsDenied());
 
   group.GetLockRequest(1).Deny();
   ASSERT_TRUE(group.GetLockRequest(1).IsDenied());
+}
+
+TEST_F(LockRequestGroupTestFixture, EmplaceRemoveRequest) {
+  // Emplace request into an empty group
+  ASSERT_TRUE(group.EmplaceLockRequest(LockMode::READ, 1, contention_matrix));
+
+  // Emplace request in agreement with the last group
+  ASSERT_TRUE(group.EmplaceLockRequest(LockMode::READ, 2, contention_matrix));
+
+  ASSERT_EQ(group.Size(), 2);
+
+  // Remove lock request for thread id 1
+  group.RemoveLockRequest(1);
+  ASSERT_EQ(group.Size(), 1);
+
+  // Remove lock request for thread id 2
+  group.RemoveLockRequest(2);
+  ASSERT_EQ(group.Size(), 0);
+  ASSERT_TRUE(group.Empty());
 }

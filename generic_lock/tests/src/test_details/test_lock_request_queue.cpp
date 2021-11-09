@@ -35,17 +35,46 @@ class LockRequestQueueTestFixture : public ::testing::Test {
   void TearDown() override {}
 };
 
-TEST_F(LockRequestQueueTestFixture, EmplaceRequest) {
+TEST_F(LockRequestQueueTestFixture, TestEmplaceRequest) {
   // Emplace request into an empty queue
-  auto result = queue.EmplaceRequest(LockMode::READ, 1);
+  auto result = queue.EmplaceLockRequest(LockMode::READ, 1);
   ASSERT_EQ(result, queue.null_group_id + 1);
 
   // Another request from the same thread
-  ASSERT_EQ(queue.EmplaceRequest(LockMode::WRITE, 1), queue.null_group_id);
+  ASSERT_EQ(queue.EmplaceLockRequest(LockMode::WRITE, 1), queue.null_group_id);
 
   // Emplace request in agreement with the last group
-  ASSERT_EQ(queue.EmplaceRequest(LockMode::READ, 2), result);
+  ASSERT_EQ(queue.EmplaceLockRequest(LockMode::READ, 2), result);
 
   // Emplace request in contention with the last group
-  ASSERT_EQ(queue.EmplaceRequest(LockMode::WRITE, 3), result + 1);
+  ASSERT_EQ(queue.EmplaceLockRequest(LockMode::WRITE, 3), result + 1);
+}
+
+TEST_F(LockRequestQueueTestFixture, TestEmplaceGetRequest) {
+  // Emplace request into an empty queue
+  queue.EmplaceLockRequest(LockMode::READ, 1);
+
+  auto& request = queue.GetLockRequest(1);
+  ASSERT_EQ(request.GetMode(), LockMode::READ);
+  ASSERT_FALSE(request.IsDenied());
+
+  queue.GetLockRequest(1).Deny();
+  ASSERT_TRUE(request.IsDenied());
+}
+
+TEST_F(LockRequestQueueTestFixture, TestEmplaceRequestGetGroupId) {
+  // Emplace request into an empty queue
+  auto result = queue.EmplaceLockRequest(LockMode::READ, 1);
+
+  ASSERT_EQ(result, queue.GetGroupId(1));
+}
+
+TEST_F(LockRequestQueueTestFixture, TestEmplaceRemoveGetRequest) {
+  // Emplace request into an empty queue
+  auto result = queue.EmplaceLockRequest(LockMode::READ, 1);
+
+  ASSERT_EQ(result, queue.GetGroupId(1));
+  queue.RemoveLockRequest(1);
+  ASSERT_THROW(queue.GetGroupId(1), std::out_of_range);
+  ASSERT_THROW(queue.GetLockRequest(1), std::out_of_range);
 }
