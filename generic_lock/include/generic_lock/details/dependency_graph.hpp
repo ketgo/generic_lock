@@ -30,8 +30,6 @@ namespace details {
 template <class T>
 class DependencyGraph {
  public:
-  static constexpr T null_id = 0;
-
   /**
    * @brief Construct a new Dependency Graph object.
    *
@@ -45,13 +43,7 @@ class DependencyGraph {
    * @param id_a Constant reference to the identifier of the dependent thread.
    * @param id_b Constant reference to the identifier of the depended thread.
    */
-  void Add(const T& id_a, const T& id_b) {
-    // Assert thread identifier is not null
-    assert(id_a != null_id);
-    assert(id_b != null_id);
-
-    _dependency_map[id_a][id_b] = true;
-  }
+  void Add(const T& id_a, const T& id_b) { _dependency_map[id_a][id_b] = true; }
 
   /**
    * @brief Remove dependency from thread with identifier `id_a` to that with
@@ -61,10 +53,6 @@ class DependencyGraph {
    * @param id_b Constant reference to the identifier of the depended thread.
    */
   void Remove(const T& id_a, const T& id_b) {
-    // Assert thread identifier is not null
-    assert(id_a != null_id);
-    assert(id_b != null_id);
-
     // Removes dependency edge only if it exists
     auto it = _dependency_map.find(id_a);
     if (it != _dependency_map.end()) {
@@ -82,9 +70,6 @@ class DependencyGraph {
    * @param id Constant reference to the thread identifier.
    */
   void Remove(const T& id) {
-    // Assert thread identifier is not null
-    assert(id != null_id);
-
     // Erase all dependency edges for the given transaction identifier
     for (auto& element : _dependency_map) {
       element.second.erase(id);
@@ -101,10 +86,6 @@ class DependencyGraph {
    * @returns `true` if the thread is dependent else `false`.
    */
   bool IsDependent(const T& id_a, const T& id_b) {
-    // Assert thread identifier is not null
-    assert(id_a != null_id);
-    assert(id_b != null_id);
-
     auto it = _dependency_map.find(id_a);
     if (it != _dependency_map.end()) {
       return it->second.find(id_b) != it->second.end();
@@ -125,22 +106,18 @@ class DependencyGraph {
    */
   template <class CycleHandler>
   void DetectCycle(const T& id, CycleHandler callback) const {
-    // Assert thread identifier is not null
-    assert(id != null_id);
-
     std::unordered_map<T, T> parents;
     std::unordered_map<T, bool> visited;
 
-    // NOTE: Thread identifier with value of `0` is considered null.
-    T node = DetectCycle(id, null_id, parents, visited);
-    if (node) {
+    auto result = DetectCycle(id, parents, visited);
+    if (result.second) {
       // Create the set of identifiers constructing the observed cycle
       std::set<T> ids;
-      ids.insert(node);
-      T parent = parents.at(node);
-      while (parent != node) {
-        ids.insert(parent);
-        parent = parents.at(parent);
+      ids.insert(result.first);
+      auto node = parents.at(result.first);
+      while (node != result.first) {
+        ids.insert(node);
+        node = parents.at(node);
       }
       // Call the cycle handler callback
       callback(ids);
@@ -149,7 +126,47 @@ class DependencyGraph {
 
  private:
   /**
-   * @brief The method transverses the dependency graph using breath first
+   * @brief The method starts traversing the dependency graph using breath first
+   * search algorithm through recursion. It marks each node as either "visited",
+   * "visiting", or "not-visited". A cycle is observed when we reach a
+   * "visiting" node again during our transversal. The path taken during the
+   * transversal can be obtained from the `partents` map, storing the parent
+   * node of each node traveled.
+   *
+   * @param node Constent reference to the node being transversed.
+   * @param parents Reference to the map storing immediate parents of each node
+   * transversed.
+   * @param visited Reference to the map storing visit status of each node.
+   * @returns The identifier on which the cycle was observed or null.
+   */
+  std::pair<T, bool> DetectCycle(const T& node,
+                                 std::unordered_map<T, T>& parents,
+                                 std::unordered_map<T, bool>& visited) const {
+    // Current node is being observed for the first time so mark it as
+    // in the process of being visited.
+    visited[node] = false;
+
+    // Find cycles in the connected child nodes
+    auto it = _dependency_map.find(node);
+    if (it != _dependency_map.end()) {
+      for (auto& element : it->second) {
+        auto result = DetectCycle(element.first, node, parents, visited);
+        if (result.second) {
+          // Found cycle so stop transversal.
+          return result;
+        }
+      }
+    }
+
+    // Mark the current node as completely visited.
+    visited[node] = true;
+
+    // No cycle detected.
+    return {{}, false};
+  }
+
+  /**
+   * @brief The method traverses the dependency graph using breath first
    * search algorithm through recursion. It marks each node as either "visited",
    * "visiting", or "not-visited". A cycle is observed when we reach a
    * "visiting" node again during our transversal. The path taken during the
@@ -164,12 +181,9 @@ class DependencyGraph {
    * @param visited Reference to the map storing visit status of each node.
    * @returns The identifier on which the cycle was observed or null.
    */
-  T DetectCycle(const T& node, const T& parent,
-                std::unordered_map<T, T>& parents,
-                std::unordered_map<T, bool>& visited) const {
-    // Default return value
-    T rvalue = null_id;
-
+  std::pair<T, bool> DetectCycle(const T& node, const T& parent,
+                                 std::unordered_map<T, T>& parents,
+                                 std::unordered_map<T, bool>& visited) const {
     // Set the parent node of the current node.
     parents[node] = parent;
 
@@ -178,10 +192,10 @@ class DependencyGraph {
     if (visited_it != visited.end()) {
       // Node visited before so return if its already completely visited.
       if (visited_it->second) {
-        return rvalue;
+        return {{}, false};
       }
       // Node not completely visited so we have a cycle.
-      return node;
+      return {node, true};
     }
 
     // Current node is being observed for the first time so mark it as
@@ -192,10 +206,10 @@ class DependencyGraph {
     auto it = _dependency_map.find(node);
     if (it != _dependency_map.end()) {
       for (auto& element : it->second) {
-        rvalue = DetectCycle(element.first, node, parents, visited);
-        if (rvalue) {
+        auto result = DetectCycle(element.first, node, parents, visited);
+        if (result.second) {
           // Found cycle so stop transversal.
-          return rvalue;
+          return result;
         }
       }
     }
@@ -204,7 +218,7 @@ class DependencyGraph {
     visited[node] = true;
 
     // No cycle detected yet.
-    return rvalue;
+    return {{}, false};
   }
 
   // Dependency map
