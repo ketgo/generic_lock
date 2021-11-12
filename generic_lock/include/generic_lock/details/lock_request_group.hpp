@@ -33,8 +33,12 @@ namespace details {
 template <class LockModeType, size_t modes_count, class ThreadIdType>
 class LockRequestGroup {
   typedef LockRequest<LockModeType> LockRequest;
+  typedef IndexedList<ThreadIdType, LockRequest> LockRequestList;
 
  public:
+  typedef typename LockRequestList::Iterator Iterator;
+  typedef typename LockRequestList::ConstIterator ConstIterator;
+
   /**
    * @brief Construct a new Lock Request Group object
    *
@@ -118,9 +122,37 @@ class LockRequestGroup {
    */
   bool Empty() const { return _requests.Empty(); }
 
+  /**
+   * @brief Get an iterator pointing to the begining of the container.
+   *
+   * @returns Iterator pointing to the begining of the container.
+   */
+  Iterator Begin() { return _requests.Begin(); }
+
+  /**
+   * @brief Get a constant iterator pointing to the begining of the container.
+   *
+   * @return Constant iterator pointing to the begining of the container.
+   */
+  ConstIterator Begin() const { return _requests.Begin(); }
+
+  /**
+   * @brief Get an iterator pointing to the end of the container.
+   *
+   * @returns Iterator pointing to the end of the container.
+   */
+  Iterator End() { return _requests.End(); }
+
+  /**
+   * @brief Get a constant iterator pointing to the end of the container.
+   *
+   * @returns Constant iterator pointing to the end of the container.
+   */
+  ConstIterator End() const { return _requests.End(); }
+
  private:
   // Indexed list of lock requests which are part of the group.
-  IndexedList<ThreadIdType, LockRequest> _requests;
+  LockRequestList _requests;
 };
 
 }  // namespace details

@@ -36,10 +36,6 @@ namespace details {
  */
 template <class LockModeType, size_t modes_count, class ThreadIdType>
 class LockRequestQueue {
-  typedef LockRequest<LockModeType> LockRequest;
-  typedef LockRequestGroup<LockModeType, modes_count, ThreadIdType>
-      LockRequestGroup;
-
  public:
   /**
    * @brief Lock request group identifier.
@@ -52,6 +48,16 @@ class LockRequestQueue {
    *
    */
   static constexpr LockRequestGroupId null_group_id = 0;
+
+ private:
+  typedef LockRequest<LockModeType> LockRequest;
+  typedef LockRequestGroup<LockModeType, modes_count, ThreadIdType>
+      LockRequestGroup;
+  typedef IndexedList<LockRequestGroupId, LockRequestGroup> RequestGroupList;
+
+ public:
+  typedef typename RequestGroupList::Iterator Iterator;
+  typedef typename RequestGroupList::ConstIterator ConstIterator;
 
   /**
    * @brief Construct a new Lock Request Queue object.
@@ -98,7 +104,7 @@ class LockRequestQueue {
     }
 
     // Could not emplace into the last group so create a new group and emplace
-    // the request in it
+    // the request inside it
     return EmplaceNewRequestGroup(last_group.key + 1, mode, thread_id);
   }
 
@@ -149,6 +155,34 @@ class LockRequestQueue {
     return _group_id_map.at(thread_id);
   }
 
+  /**
+   * @brief Get an iterator pointing to the begining of the container.
+   *
+   * @returns Iterator pointing to the begining of the container.
+   */
+  Iterator Begin() { return _groups.Begin(); }
+
+  /**
+   * @brief Get a constant iterator pointing to the begining of the container.
+   *
+   * @return Constant iterator pointing to the begining of the container.
+   */
+  ConstIterator Begin() const { return _groups.Begin(); }
+
+  /**
+   * @brief Get an iterator pointing to the end of the container.
+   *
+   * @returns Iterator pointing to the end of the container.
+   */
+  Iterator End() { return _groups.End(); }
+
+  /**
+   * @brief Get a constant iterator pointing to the end of the container.
+   *
+   * @returns Constant iterator pointing to the end of the container.
+   */
+  ConstIterator End() const { return _groups.End(); }
+
  private:
   /**
    * @brief Emplace a new request group into the queue and emplace a new lock
@@ -175,7 +209,7 @@ class LockRequestQueue {
   }
 
   // List of lock request groups indexed on their group identifier
-  IndexedList<LockRequestGroupId, LockRequestGroup> _groups;
+  RequestGroupList _groups;
   // Map between the thread identifiers and the associated lock request group
   // identifier.
   std::unordered_map<ThreadIdType, LockRequestGroupId> _group_id_map;

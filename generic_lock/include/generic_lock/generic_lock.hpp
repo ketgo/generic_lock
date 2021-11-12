@@ -145,17 +145,27 @@ class GenericLock {
     if (group_id == LockRequestQueue::null_group_id) {
       return false;
     }
-    // If the emplaced request belong to the granted group then return
+    // If the emplaced request belong to the granted group then return as the
+    // lock has been granted successfully.
     if (group_id == entry.granted_group_id) {
       return true;
     }
+
     // Either a new group is created or the request is emplaced in the last
-    // group. This implies that the thread should wait till the request can be
-    // granted.
+    // group. This implies that the thread needs to wait till the request can be
+    // granted. Furthermore, the thread is dependent on the prior requests to be
+    // granted. We thus have to update the dependency graph and put the thread
+    // into wait mode.
+
+    InsertDependency(entry.queue, thread_id);
     entry.cv.Wait(
         lock, _timeout,
         std::bind(&GenericLock::DeadlockCheck, this, record_id, thread_id),
         std::bind(&GenericLock::StopWaiting, this, record_id, thread_id));
+
+    // TODO: Check if the request was denied. Happens on deadlock discovery.
+
+    return true;
   }
 
   /**
@@ -182,6 +192,88 @@ class GenericLock {
               const ThreadIdType& thread_id = std::this_thread::get_id());
 
  private:
+  /**
+   * @brief Insert dependency for the given thread identifier requesting lock
+   * for a record associated with the given request queue.
+   *
+   * @note This method is idempotent so its safe to make duplicate calls.
+   *
+   * @param queue Constant reference to the lock request queue.
+   * @param thread_id Constant reference to the thread identifier.
+   */
+  void InsertDependency(const LockRequestQueue& queue,
+                        const ThreadIdType& thread_id) {
+    auto group_id = queue.GetGroupId(thread_id);
+    auto group_it = queue.Begin();
+
+    // Iterate through the queue till just before the given threads request
+    // group. The request of the given thread is dependent on all requests in
+    // these groups.
+    while (group_it->key != group_id) {
+      for (auto request_it = group_it->value.Begin();
+           request_it != group_it->value.End(); ++request_it) {
+        // NOTE: The `Add` method is idempotent. This implies that duplicate
+        // calls to the method will have the desired null effect.
+        _dependency_graph.Add(thread_id, request_it->key);
+      }
+      ++group_it;
+    }
+
+    // Iterate through the queue starting right after the given threads request
+    // group till the end of the queue. All the requests in these groups are
+    // dependnet on the request of the given thread.
+    ++group_it;
+    while (group_it != queue.End()) {
+      for (auto request_it = group_it->value.Begin();
+           request_it != group_it->value.End(); ++request_it) {
+        // NOTE: The `Add` method is idempotent. This implies that duplicate
+        // calls to the method will have the desired null effect.
+        _dependency_graph.Add(request_it->key, thread_id);
+      }
+    }
+  }
+
+  /**
+   * @brief Remove dependency for the given thread identifier having a lock
+   * request for a record associated with the given request queue.
+   *
+   * @note This method removes dependencies only if they exist. Thus it is safe
+   * to make duplicate calls.
+   *
+   * @param queue Constant reference to the lock request queue.
+   * @param thread_id Constant reference to the thread identifier.
+   */
+  void RemoveDependency(const LockRequestQueue& queue,
+                        const ThreadIdType& thread_id) {
+    auto group_id = queue.GetGroupId(thread_id);
+    auto group_it = queue.Begin();
+
+    // Iterate through the queue till just before the given threads request
+    // group. The request of the given thread is dependent on all requests in
+    // these groups.
+    while (group_it->key != group_id) {
+      for (auto request_it = group_it->value.Begin();
+           request_it != group_it->value.End(); ++request_it) {
+        // NOTE: The `Remove` method only removes dependency if it exist. Thus
+        // duplicate calls to the method has the desired null effect.
+        _dependency_graph.Remove(thread_id, request_it->key);
+      }
+    }
+
+    // Iterate through the queue starting right after the given threads request
+    // group till the end of the queue. All the requests in these groups are
+    // dependnet on the request of the given thread.
+    ++group_it;
+    while (group_it != queue.End()) {
+      for (auto request_it = group_it->value.Begin();
+           request_it != group_it->value.End(); ++request_it) {
+        // NOTE: The `Remove` method only removes dependency if it exist. Thus
+        // duplicate calls to the method has the desired null effect.
+        _dependency_graph.Remove(request_it->key, thread_id);
+      }
+    }
+  }
+
   /**
    * @brief Method to check if a thread should stop waiting. A thread can stop
    * waiting if its lock request is granted or if the request is denied due to a
