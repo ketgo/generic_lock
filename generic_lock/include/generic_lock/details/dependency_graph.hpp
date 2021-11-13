@@ -15,6 +15,7 @@
 #ifndef GENERIC_LOCK__DETAILS__DEPENDENCY_GRAPH_HPP
 #define GENERIC_LOCK__DETAILS__DEPENDENCY_GRAPH_HPP
 
+#include <set>
 #include <unordered_map>
 
 namespace gl {
@@ -97,15 +98,16 @@ class DependencyGraph {
    * @brief Detects a cycle in the dependency graph. If a cycle is observed then
    * a callback is called with the set of thread identifiers that are part of
    * the detected cycle as argument. Thus the callback should have a signature
-   * `void callback(std::set<T>&)`.
+   * `void callback(std::set<T>&)`. Furthermore, the method returns `true` if a
+   * cycle was observed, otherwise `false`.
    *
    * @param id Constant reference to the thread identifier from where to start
    * lookup. This identifier should exist in the dependency graph.
    * @param callback The cycle handler callback.
-   *
+   * @returns `true` if a cycle was detected else `false`.
    */
   template <class CycleHandler>
-  void DetectCycle(const T& id, CycleHandler callback) const {
+  bool DetectCycle(const T& id, CycleHandler callback) const {
     std::unordered_map<T, T> parents;
     std::unordered_map<T, bool> visited;
 
@@ -122,6 +124,8 @@ class DependencyGraph {
       // Call the cycle handler callback
       callback(ids);
     }
+
+    return result.second;
   }
 
  private:
@@ -137,7 +141,8 @@ class DependencyGraph {
    * @param parents Reference to the map storing immediate parents of each node
    * transversed.
    * @param visited Reference to the map storing visit status of each node.
-   * @returns The identifier on which the cycle was observed or null.
+   * @returns A pair containing a flag indicating if a cycle was observed and
+   * the identifier on which the cycle was observed or null.
    */
   std::pair<T, bool> DetectCycle(const T& node,
                                  std::unordered_map<T, T>& parents,
@@ -179,7 +184,8 @@ class DependencyGraph {
    * @param parents Reference to the map storing immediate parents of each node
    * transversed.
    * @param visited Reference to the map storing visit status of each node.
-   * @returns The identifier on which the cycle was observed or null.
+   * @returns A pair containing a flag indicating if a cycle was observed and
+   * the identifier on which the cycle was observed or null.
    */
   std::pair<T, bool> DetectCycle(const T& node, const T& parent,
                                  std::unordered_map<T, T>& parents,

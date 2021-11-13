@@ -145,6 +145,17 @@ class LockRequestQueue {
   }
 
   /**
+   * @brief Check if a lock request for the given thread identifier exists in
+   * the queue.
+   *
+   * @param thread_id Constant reference to the thread identifier.
+   * @returns `true` if request is in the queue else `false`.
+   */
+  bool LockRequestExists(const ThreadIdType& thread_id) {
+    return _group_id_map.find(thread_id) != _group_id_map.end();
+  }
+
+  /**
    * @brief Get the lock request group identifier for the given thread
    * identifier.
    *
@@ -182,6 +193,13 @@ class LockRequestQueue {
    * @returns Constant iterator pointing to the end of the container.
    */
   ConstIterator End() const { return _groups.End(); }
+
+  /**
+   * @brief Check if the lock request queue is empty.
+   *
+   * @returns `true` if empty else `false`.
+   */
+  bool Empty() const { return _groups.Empty(); }
 
  private:
   /**

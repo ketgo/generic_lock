@@ -22,6 +22,10 @@
 namespace gl {
 namespace details {
 
+// TODO: Remove the request group class and move all its methods in the request
+// queue. As can be seen from the below implementation, request group is simply
+// an IndexedList container.
+
 /**
  * @brief Group of lock request that are in agreement with each other such
  * that all the requests in the group can be granted simultaneously.

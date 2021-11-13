@@ -66,13 +66,18 @@ TEST_F(DependencyGraphTestFixture, TestDetectCycleExists) {
   graph.Add(8, 9);
   graph.Add(8, 10);
 
-  graph.DetectCycle(4,
-                    [&](std::set<size_t>& ids) { ASSERT_TRUE(ids.empty()); });
-  graph.DetectCycle(1, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); });
-  graph.DetectCycle(2, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); });
-  graph.DetectCycle(5, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); });
-  graph.DetectCycle(6, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); });
-  graph.DetectCycle(7, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); });
+  ASSERT_FALSE(graph.DetectCycle(
+      4, [&](std::set<size_t>& ids) { ASSERT_TRUE(ids.empty()); }));
+  ASSERT_TRUE(graph.DetectCycle(
+      1, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); }));
+  ASSERT_TRUE(graph.DetectCycle(
+      2, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); }));
+  ASSERT_TRUE(graph.DetectCycle(
+      5, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); }));
+  ASSERT_TRUE(graph.DetectCycle(
+      6, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); }));
+  ASSERT_TRUE(graph.DetectCycle(
+      7, [&](std::set<size_t>& ids) { ASSERT_EQ(ids, cycle); }));
 }
 
 TEST_F(DependencyGraphTestFixture, TestDetectNoCycle) {
@@ -87,6 +92,6 @@ TEST_F(DependencyGraphTestFixture, TestDetectNoCycle) {
   graph.Add(8, 9);
   graph.Add(8, 10);
 
-  graph.DetectCycle(1,
-                    [&](std::set<size_t>& ids) { ASSERT_TRUE(ids.empty()); });
+  ASSERT_FALSE(graph.DetectCycle(
+      1, [&](std::set<size_t>& ids) { ASSERT_TRUE(ids.empty()); }));
 }

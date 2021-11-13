@@ -24,6 +24,8 @@
 #include <generic_lock/details/contention_matrix.hpp>
 #include <generic_lock/details/lock_request_queue.hpp>
 
+#include <generic_lock/recovery_policy.hpp>
+
 namespace gl {
 
 /**
@@ -78,9 +80,12 @@ using ContentionMatrix = details::ContentionMatrix<modes_count>;
  * `std::thread::id`.
  * @tparam timeout The time in milliseconds to wait before checking for
  * deadlock. Default set to `300`.
+ * @tparam Policy Deadlock recovery policy type. Default set to
+ * `SelectMaxPolicy<ThreadIdType>`.
  */
 template <class RecordIdType, class LockModeType, size_t modes_count,
-          class ThreadIdType = std::thread::id, size_t timeout = 300>
+          class ThreadIdType = std::thread::id, size_t timeout = 300,
+          class Policy = SelectMaxPolicy<ThreadIdType>>
 class GenericLock {
   // Lock request queue type
   typedef details::LockRequestQueue<LockModeType, modes_count, ThreadIdType>
@@ -163,22 +168,21 @@ class GenericLock {
         std::bind(&GenericLock::DeadlockCheck, this, record_id, thread_id),
         std::bind(&GenericLock::StopWaiting, this, record_id, thread_id));
 
-    // TODO: Check if the request was denied. Happens on deadlock discovery.
+    // Check if the request was denied. Happens on deadlock discovery.
+    if (entry.queue.GetLockRequest(thread_id).IsDenied()) {
+      // Permform cleanup by removing all the dependencies existing in the
+      // dependency graph for the thread. Note that all the dependent/depended
+      // requests of the denied request will exist only in the current queue. We
+      // dont need to check queues associated with the other record identifiers.
+      RemoveDependency(entry.queue, thread_id);
+      // Remove the lock request from the queue
+      entry.queue.RemoveLockRequest(thread_id);
+
+      return false;
+    }
 
     return true;
   }
-
-  /**
-   * @brief
-   *
-   * @param record_id
-   * @param mode
-   * @param thread_id
-   * @return true
-   * @return false
-   */
-  bool TryLock(const RecordIdType& record_id, const LockModeType& mode,
-               const ThreadIdType& thread_id = std::this_thread::get_id());
 
   /**
    * @brief Unlock an already acquired lock on a record with the given
@@ -189,7 +193,54 @@ class GenericLock {
    * to `std::this_thread::get_id()`.
    */
   void Unlock(const RecordIdType& record_id,
-              const ThreadIdType& thread_id = std::this_thread::get_id());
+              const ThreadIdType& thread_id = std::this_thread::get_id()) {
+    UniqueLock lock(_latch);
+
+    // Check if an entry exists in the lock table for the given record
+    // identifier.
+    auto table_it = _table.find(record_id);
+    if (table_it == _table.end()) {
+      return;
+    }
+
+    auto& entry = table_it->second;
+    // Check if a granted lock request exists in the queue.
+    if (entry.queue.LockRequestExists(thread_id)) {
+      if (entry.queue.GetGroupId(thread_id) == entry.granted_group_id) {
+        // Remove all dependencies for the given thread identifier.
+        RemoveDependency(entry.queue, thread_id);
+        // Remove the lock request from the queue
+        entry.queue.RemoveLockRequest(thread_id);
+        // Check if no more lock requests pending
+        if (entry.queue.Empty()) {
+          // We can remove the entry from the lock table since the request queue
+          // is empty.
+          _table.erase(record_id);
+        } else {
+          // The request queue is not empty so we now check if all the granted
+          // locks have been unlocked. If so, we can wakeup all the waiting
+          // threads associated with the request queue.
+          auto& front_group_id = entry.queue.Begin()->key;
+          if (front_group_id != entry.granted_group_id) {
+            entry.granted_group_id = front_group_id;
+
+            // Reduces mutex contention for improved performance.
+            lock.unlock();
+
+            // TODO: [OPTIMIZATION] Insted of notifying all waiting threads,
+            // design an approach to notify only the threads associated with the
+            // granted request group. This reduces unnecessary thread wakeups
+            // which in turn reduces mutex contention.
+
+            entry.cv.NotifyAll();
+          } else {
+            // Some of the granted lock requests are still not unlocked so do
+            // nothing.
+          }
+        }
+      }
+    }
+  }
 
  private:
   /**
@@ -300,7 +351,55 @@ class GenericLock {
    * @param thread_id Constant reference to the thread identifier.
    */
   void DeadlockCheck(const RecordIdType& record_id,
-                     const ThreadIdType& thread_id) {}
+                     const ThreadIdType& thread_id) {
+    // Check if the request associated with the given thread identifier is
+    // denied. In that case there is no need to run the deadlock check and we
+    // can simply return. This avoids unnecessary deadlock checks.
+    if (_table.at(record_id).entry.queue.GetLockRequest(thread_id).IsDenied()) {
+      return;
+    }
+
+    // Instantiates recovery policy
+    Policy policy;
+
+    // Search for presence of deadlock
+    if (_dependency_graph.DetectCycle(thread_id, policy)) {
+      auto& _thread_id = policy.Get();
+
+      // Deny the waiting request of `_thread_id` identifier. Note that even
+      // though multiple granted requests from the thread can exist in the lock
+      // table, there can only be a single waiting request. We need to find and
+      // deny that request here.
+
+      // TODO: [OPTIMIZATION] Create a sperate class called LockTable and expose
+      // an API method `GetWaitingRequest(const ThreadIdType& thread_id)` which
+      // implements O(1) request retrival.
+
+      // Iterate through each entry in thr lock table
+      for (auto& element : _table) {
+        auto& entry = element->second;
+        // Check if the entry contains the waiting lock request for the above
+        // thread identifier.
+        if (entry.queue.LockRequestExists(_thread_id)) {
+          if (entry.queue.GetGroupId(_thread_id) != entry.granted_group_id) {
+            // Deny the lock request and notify all the waiting threads in the
+            // queue
+
+            // TODO: [OPTIMIZATION] Design an approach to just wakeup the thread
+            // associated with the denied request. This avoids unnecessary
+            // wakeup of other threads.
+
+            entry.queue.GetLockRequest(_thread_id).Deny();
+            entry.cv.NotifyAll();
+
+            // Since only a single waiting request from the thread can ever
+            // exist in the lock table, we can now simply terminate the loop.
+            break;
+          }
+        }
+      }
+    }
+  }
 
   // Lock mode contention matrix
   const ContentionMatrix<modes_count> _contention_matrix;
