@@ -126,10 +126,10 @@ class GenericMutex {
   GenericMutex(const ContentionMatrix<modes_count>& contention_matrix)
       : _contention_matrix(contention_matrix) {}
 
-  // Lock not copyable
+  // Mutex not copyable
   GenericMutex(const GenericMutex& other) = delete;
-  // Lock not copy assignable
-  GenericMutex& operator==(const GenericMutex& other) = delete;
+  // Mutex not copy assignable
+  GenericMutex& operator=(const GenericMutex& other) = delete;
 
   /**
    * @brief Acquire a lock on a record with the given identifier. The calling
