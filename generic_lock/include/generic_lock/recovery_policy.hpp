@@ -38,9 +38,10 @@ class SelectMaxPolicy {
    * @param thread_ids Reference to the set of thread identifiers.
    */
   void operator()(std::set<ThreadIdType>& thread_ids) {
-    for (auto& thread_id : thread_ids) {
-      if (_thread_id < thread_id) {
-        _thread_id = thread_id;
+    _it = thread_ids.begin();
+    for (auto it = thread_ids.begin(); it != thread_ids.end(); ++it) {
+      if (*_it < *it) {
+        _it = it;
       }
     }
   }
@@ -50,10 +51,10 @@ class SelectMaxPolicy {
    *
    * @returns Constant reference to the policy selected thread identifier.
    */
-  const ThreadIdType& Get() const { return _thread_id; }
+  const ThreadIdType& Get() const { return *_it; }
 
  private:
-  ThreadIdType _thread_id;
+  typename std::set<ThreadIdType>::iterator _it;
 };
 
 }  // namespace gl

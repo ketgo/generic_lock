@@ -13,28 +13,20 @@
 // limitations under the License.
 
 /**
- * @brief Uint Test Generic Lock
+ * @brief Uint Test Recovery Policies
  *
  */
 
 #include <gtest/gtest.h>
 
-#include <generic_lock/generic_lock.hpp>
+#include <generic_lock/recovery_policy.hpp>
 
 using namespace gl;
 
-class GenericLockTestFixture : public ::testing::Test {
- protected:
-  typedef size_t RecordId;
+TEST(RecoveryPolicyTestFixture, SelectMaxPolicy) {
+  SelectMaxPolicy<size_t> policy;
+  std::set<size_t> thread_ids = {1, 5, 2, 15, 7, 3, 11};
 
-  enum class LockMode { READ, WRITE };
-  const ContentionMatrix<2> contention_matrix = {
-      {{{false, true}}, {{true, true}}}};
-
-  GenericLock<RecordId, LockMode, 2> lock = {contention_matrix};
-
-  void SetUp() override {}
-  void TearDown() override {}
-};
-
-TEST_F(GenericLockTestFixture, TestLock) {}
+  policy(thread_ids);
+  ASSERT_EQ(policy.Get(), 15);
+}

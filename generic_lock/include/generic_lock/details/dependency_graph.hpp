@@ -21,6 +21,10 @@
 namespace gl {
 namespace details {
 
+// TODO: Use shared pointer to thread identifier for creating dependency graphs.
+// This enables support of non-trival thread identifier types. It further has an
+// advantage if treating null pointer as a null thread identifier.
+
 /**
  * @brief Directed graph used to track depedency between different concurrently
  * running theads. A thread `A` is dependent on thread `B` if `A` is waiting
