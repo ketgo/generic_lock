@@ -15,6 +15,8 @@
 #ifndef GENERIC_LOCK__GENERIC_LOCK_HPP
 #define GENERIC_LOCK__GENERIC_LOCK_HPP
 
+#include <system_error>
+
 namespace gl {
 
 /**
@@ -73,6 +75,26 @@ class GenericLock {
         _generic_mutex_ptr(&generic_mutex),
         _denied(!_generic_mutex_ptr->Lock(_record_id, _mode, _thread_id)) {}
 
+  // Lock not copyable
+  GenericLock(const GenericLock& other) = delete;
+
+  /**
+   * @brief Move construct a new Generic lock object.
+   *
+   * @param other Rvalue reference to the other generic lock object.
+   */
+  GenericLock(GenericLock&& other)
+      : _owns(other._owns),
+        _record_id(other._record_id),
+        _mode(other._mode),
+        _thread_id(other._thread_id),
+        _generic_mutex_ptr(other._generic_mutex_ptr),
+        _denied(other._denied) {
+    other._owns = false;
+    other._denied = false;
+    other._generic_mutex_ptr = nullptr;
+  }
+
   /**
    * @brief Destroy the Generic Lock object. The underlying mutex is unlocked if
    * locked.
@@ -86,45 +108,46 @@ class GenericLock {
    * @returns `true` if lock acquired else `false`.
    */
   bool Lock() {
-    if (!_owns) {
-      _owns = true;
-      _denied = !_generic_mutex_ptr->Lock(_record_id, _mode, _thread_id);
+    if (_generic_mutex_ptr == nullptr) {
+      throw std::system_error(EPERM,
+                              "GenericLock::Lock: references null mutex");
     }
+    if (_owns) {
+      throw std::system_error(EDEADLK, "GenericLock::Lock: already locked");
+    }
+    _denied = !_generic_mutex_ptr->Lock(_record_id, _mode, _thread_id);
+    _owns = true;
     return !_denied;
   }
-
-  // Lock not copyable
-  GenericLock(const GenericLock& other) = delete;
-  // Lock not copy assignable
-  GenericLock& operator=(const GenericLock& other) = delete;
-
-  /**
-   * @brief Move construct a new Generic lock object.
-   *
-   * @param other Rvalue reference to the other generic lock object.
-   */
-  GenericLock(GenericLock&& other) {}
-
-  /**
-   * @brief Move assign the generic lock.
-   *
-   * @param other Rvalue reference to the other generic lock object.
-   * @returns Reference to the generic lock object.
-   */
-  GenericLock& operator=(GenericLock&& other) {}
 
   /**
    * @brief Unlock the underlying generic mutex.
    *
    */
   void Unlock() {
-    if (_owns) {
-      _owns = false;
-      if (!_denied) {
-        _denied = false;
-        _generic_mutex_ptr->Unlock(_record_id, _thread_id);
-      }
+    if (!_owns) {
+      throw std::system_error(EPERM, "GenericLock::UnLock: not locked");
     }
+    _owns = false;
+    if (!_denied) {
+      _denied = false;
+      _generic_mutex_ptr->Unlock(_record_id, _thread_id);
+    }
+  }
+
+  /**
+   * @brief Releases ownership of the associated generic mutex without
+   * unlocking. If a lock is held prior to this call, the caller is now
+   * responsible to unlock the mutex.
+   *
+   * @returns Pointer to the associated generic mutex or a null pointer.
+   */
+  GenericMutexType* Release() {
+    GenericMutexType* rvalue = _generic_mutex_ptr;
+    _generic_mutex_ptr = nullptr;
+    _owns = false;
+    _denied = false;
+    return rvalue;
   }
 
   // TODO: Change this to `IsAcquired`.
@@ -156,6 +179,30 @@ class GenericLock {
    * @returns `true` if the lock is owned and acquired else `false`.
    */
   explicit operator bool() const { return _owns && !_denied; }
+
+  // Lock not copy assignable
+  GenericLock& operator=(const GenericLock& other) = delete;
+
+  /**
+   * @brief Move assign the generic lock.
+   *
+   * @param other Rvalue reference to the other generic lock object.
+   * @returns Reference to the generic lock object.
+   */
+  GenericLock& operator=(GenericLock&& other) {
+    if (*this != &other) {
+      if (_owns && !_denied) {
+        _generic_mutex_ptr->Unlock(_record_id, _thread_id);
+      }
+      _owns = other._owns;
+      _record_id = other._record_id;
+      _mode = other._mode;
+      _thread_id = other._thread_id;
+      _generic_mutex_ptr = other._generic_mutex_ptr;
+      _denied = other._denied;
+    }
+    return *this;
+  }
 
  private:
   bool _owns;
