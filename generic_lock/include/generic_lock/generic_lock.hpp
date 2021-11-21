@@ -20,7 +20,39 @@
 namespace gl {
 
 /**
- * @brief Generic lock is a general-purpose generic mutex ownership wrapper.
+ * @brief Defer lock tag used for specifing constructor behaviour of generic
+ * lock. If the defer lock tag is passed, the generic lock will not lock its
+ * underlying mutex during construction.
+ *
+ */
+struct DeferLockTag {
+  explicit DeferLockTag() = default;
+};
+constexpr DeferLockTag DeferLock = DeferLockTag();
+
+/**
+ * @brief Adopt lock tag used for specifing constructor behaviour of generic
+ * lock. If the adopt lock tag is passed, the generic lock will assume the
+ * caller already holds lock to its underlying mutex during construction.
+ *
+ */
+struct AdoptLockTag {
+  explicit AdoptLockTag() = default;
+};
+constexpr AdoptLockTag AdoptLock = AdoptLockTag();
+
+/**
+ * @brief Generic lock is a general-purpose generic mutex ownership wrapper. The
+ * lock has three possible states:
+ *
+ * None: The mutex is not owned by the lock since no attempt to acquire the lock
+ * has been performed.
+ *
+ * Owned: The mutex is owned by the lock and in turn implies that the mutex is
+ * locked.
+ *
+ * Denied: The lock on the mutex was denied in order to prevent or recover from
+ * a deadlock. This in turn implies that the mutex is not owned.
  *
  * @tparam GenericMutexType The type of generic mutex.
  */
@@ -36,44 +68,67 @@ class GenericLock {
    *
    */
   GenericLock()
-      : _owns(false),
-        _record_id(),
+      : _record_id(),
         _mode(),
         _thread_id(),
         _generic_mutex_ptr(nullptr),
+        _owns(false),
         _denied(false) {}
 
   /**
-   * @brief Construct a new Generic Lock object.
-   *
-   * @param generic_mutex Reference to the generic mutex to manage.
-   */
-  GenericLock(GenericMutexType& generic_mutex)
-      : _owns(false),
-        _record_id(),
-        _mode(),
-        _thread_id(),
-        _generic_mutex_ptr(&generic_mutex),
-        _denied(false) {}
-
-  /**
-   * @brief Construct a new Generic Lock object and acquire a lock.
+   * @brief Construct a new Generic Lock object and acquire a lock on the mutex.
    *
    * @param generic_mutex Reference to the generic mutex to manager.
    * @param record_id Constant reference to the record identifier.
    * @param mode Constant reference to the lock mode.
-   * @param thread_id Constant reference to the thread identifier. Default set
-   * to `std::this_thread::get_id()`.
+   * @param thread_id Constant reference to the thread identifier.
    */
   GenericLock(GenericMutexType& generic_mutex, const RecordIdType& record_id,
-              const LockModeType& mode,
-              const ThreadIdType& thread_id = std::this_thread::get_id())
-      : _owns(true),
-        _record_id(record_id),
+              const LockModeType& mode, const ThreadIdType& thread_id)
+      : _record_id(record_id),
         _mode(mode),
         _thread_id(thread_id),
         _generic_mutex_ptr(&generic_mutex),
-        _denied(!_generic_mutex_ptr->Lock(_record_id, _mode, _thread_id)) {}
+        _owns(_generic_mutex_ptr->Lock(_record_id, _mode, _thread_id)),
+        _denied(!_owns) {}
+
+  /**
+   * @brief Construct a new Generic Lock object without acquiring a lock on the
+   * mutex.
+   *
+   * @param generic_mutex Reference to the generic mutex to manager.
+   * @param record_id Constant reference to the record identifier.
+   * @param mode Constant reference to the lock mode.
+   * @param thread_id Constant reference to the thread identifier.
+   */
+  GenericLock(GenericMutexType& generic_mutex, const RecordIdType& record_id,
+              const LockModeType& mode, const ThreadIdType& thread_id,
+              DeferLockTag)
+      : _record_id(record_id),
+        _mode(mode),
+        _thread_id(thread_id),
+        _generic_mutex_ptr(&generic_mutex),
+        _owns(false),
+        _denied(false) {}
+
+  /**
+   * @brief Construct a new Generic Lock object assuming the caller already
+   * acquired a lock on the mutex.
+   *
+   * @param generic_mutex Reference to the generic mutex to manager.
+   * @param record_id Constant reference to the record identifier.
+   * @param mode Constant reference to the lock mode.
+   * @param thread_id Constant reference to the thread identifier.
+   */
+  GenericLock(GenericMutexType& generic_mutex, const RecordIdType& record_id,
+              const LockModeType& mode, const ThreadIdType& thread_id,
+              AdoptLockTag)
+      : _record_id(record_id),
+        _mode(mode),
+        _thread_id(thread_id),
+        _generic_mutex_ptr(&generic_mutex),
+        _owns(true),
+        _denied(false) {}
 
   // Lock not copyable
   GenericLock(const GenericLock& other) = delete;
@@ -84,11 +139,11 @@ class GenericLock {
    * @param other Rvalue reference to the other generic lock object.
    */
   GenericLock(GenericLock&& other)
-      : _owns(other._owns),
-        _record_id(other._record_id),
+      : _record_id(other._record_id),
         _mode(other._mode),
         _thread_id(other._thread_id),
         _generic_mutex_ptr(other._generic_mutex_ptr),
+        _owns(other._owns),
         _denied(other._denied) {
     other._owns = false;
     other._denied = false;
@@ -100,24 +155,29 @@ class GenericLock {
    * locked.
    *
    */
-  ~GenericLock() { Unlock(); }
+  ~GenericLock() {
+    if (_owns) {
+      _generic_mutex_ptr->Unlock(_record_id, _thread_id);
+    }
+  }
 
   /**
    * @brief Lock the underlying generic mutex.
    *
-   * @returns `true` if lock acquired else `false`.
+   * @returns `true` if the lock is acquired else `false`.
    */
   bool Lock() {
     if (_generic_mutex_ptr == nullptr) {
-      throw std::system_error(EPERM,
+      throw std::system_error(EPERM, std::system_category(),
                               "GenericLock::Lock: references null mutex");
     }
     if (_owns) {
-      throw std::system_error(EDEADLK, "GenericLock::Lock: already locked");
+      throw std::system_error(EDEADLK, std::system_category(),
+                              "GenericLock::Lock: already locked");
     }
-    _denied = !_generic_mutex_ptr->Lock(_record_id, _mode, _thread_id);
-    _owns = true;
-    return !_denied;
+    _owns = _generic_mutex_ptr->Lock(_record_id, _mode, _thread_id);
+    _denied = !_owns;
+    return _owns;
   }
 
   /**
@@ -126,13 +186,12 @@ class GenericLock {
    */
   void Unlock() {
     if (!_owns) {
-      throw std::system_error(EPERM, "GenericLock::UnLock: not locked");
+      throw std::system_error(EPERM, std::system_category(),
+                              "GenericLock::UnLock: not locked");
     }
-    _owns = false;
-    if (!_denied) {
-      _denied = false;
-      _generic_mutex_ptr->Unlock(_record_id, _thread_id);
-    }
+    _owns = false;  // NOTE: No need to set _denied as it will be already set to
+                    // `false` since _owns is set to `true`.
+    _generic_mutex_ptr->Unlock(_record_id, _thread_id);
   }
 
   /**
@@ -150,17 +209,18 @@ class GenericLock {
     return rvalue;
   }
 
-  // TODO: Change this to `IsAcquired`.
   /**
-   * @brief Check if the lock is denied, i.e. could not be acquired.
+   * @brief Check if the lock on the underlying mutex has been denied. Note that
+   * the mutex is not considered owned if the lock on it is denied.
    *
-   * @return `true` if lock was denied else `false`.
+   * @returns `true` if lock is denied else `false`.
    */
   bool IsDenied() const { return _denied; }
 
   /**
-   * @brief Check if the lock owns the underlying generic mutex. A mutex is
-   * owned when its `Lock` method is called. It is disowned upon unlock.
+   * @brief Check if the underlying generic mutex is owned. A mutex is owned
+   * when its locked, and disowned upon unlock. Note that the mutex might get
+   * failed to be owned if the lock on it is denied.
    *
    * @returns `true` if the mutex is owned else `false`.
    */
@@ -174,11 +234,32 @@ class GenericLock {
   GenericMutexType* Mutex() const { return _generic_mutex_ptr; }
 
   /**
-   * @brief Check if the lock is owned and acquired.
+   * @brief Get the identifier of the record associated with the lock.
+   *
+   * @returns Constant reference to the record identifier.
+   */
+  const RecordIdType& RecordId() const { return _record_id; }
+
+  /**
+   * @brief Get the lock mode.
+   *
+   * @returns Constant reference to the lock mode.
+   */
+  const LockModeType& LockMode() const { return _mode; }
+
+  /**
+   * @brief Get the identifier of the thread associated with the lock.
+   *
+   * @returns Constant reference to the thread identifier.
+   */
+  const ThreadIdType& ThreadId() const { return _thread_id; }
+
+  /**
+   * @brief Check if the lock is owned.
    *
    * @returns `true` if the lock is owned and acquired else `false`.
    */
-  explicit operator bool() const { return _owns && !_denied; }
+  explicit operator bool() const { return _owns; }
 
   // Lock not copy assignable
   GenericLock& operator=(const GenericLock& other) = delete;
@@ -191,25 +272,28 @@ class GenericLock {
    */
   GenericLock& operator=(GenericLock&& other) {
     if (*this != &other) {
-      if (_owns && !_denied) {
+      if (_owns) {
         _generic_mutex_ptr->Unlock(_record_id, _thread_id);
       }
-      _owns = other._owns;
       _record_id = other._record_id;
       _mode = other._mode;
       _thread_id = other._thread_id;
       _generic_mutex_ptr = other._generic_mutex_ptr;
+      _owns = other._owns;
       _denied = other._denied;
+      other._generic_mutex_ptr = nullptr;
+      other._owns = false;
+      other._denied = false;
     }
     return *this;
   }
 
  private:
-  bool _owns;
   RecordIdType _record_id;
   LockModeType _mode;
   ThreadIdType _thread_id;
   GenericMutexType* _generic_mutex_ptr;
+  bool _owns;
   bool _denied;
 };
 

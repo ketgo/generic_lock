@@ -50,6 +50,11 @@ using ContentionMatrix = details::ContentionMatrix<modes_count>;
 // TODO: Find better way of passing the lock modes and contention matrix to the
 // generic lock.
 
+// TODO: Use a different name instead of `ThreadIdType` (how about
+// `ExecutionIdType`?). That will enable removing the default value
+// `std::this_thread::get_id()`. Let the user decide if they which to use the
+// thread identifier explicitly.
+
 /**
  * @brief The generic mutex class is a synchronization primitive that can be
  * used to protect multiple shared data records from simultaneous access by

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * @brief Uint Test Generic Lock
+ * @brief Uint Test Generic Mutex
  *
  */
 
@@ -23,7 +23,7 @@
 
 using namespace gl;
 
-class GenericLockTestFixture : public ::testing::Test {
+class GenericMutexTestFixture : public ::testing::Test {
  protected:
   typedef size_t RecordId;
 
@@ -37,4 +37,4 @@ class GenericLockTestFixture : public ::testing::Test {
   void TearDown() override {}
 };
 
-TEST_F(GenericLockTestFixture, TestLock) {}
+TEST_F(GenericMutexTestFixture, TestLock) {}
