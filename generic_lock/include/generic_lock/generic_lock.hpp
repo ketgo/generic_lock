@@ -271,20 +271,18 @@ class GenericLock {
    * @returns Reference to the generic lock object.
    */
   GenericLock& operator=(GenericLock&& other) {
-    if (*this != &other) {
-      if (_owns) {
-        _generic_mutex_ptr->Unlock(_record_id, _thread_id);
-      }
-      _record_id = other._record_id;
-      _mode = other._mode;
-      _thread_id = other._thread_id;
-      _generic_mutex_ptr = other._generic_mutex_ptr;
-      _owns = other._owns;
-      _denied = other._denied;
-      other._generic_mutex_ptr = nullptr;
-      other._owns = false;
-      other._denied = false;
+    if (_owns) {
+      _generic_mutex_ptr->Unlock(_record_id, _thread_id);
     }
+    _record_id = other._record_id;
+    _mode = other._mode;
+    _thread_id = other._thread_id;
+    _generic_mutex_ptr = other._generic_mutex_ptr;
+    _owns = other._owns;
+    _denied = other._denied;
+    other._generic_mutex_ptr = nullptr;
+    other._owns = false;
+    other._denied = false;
     return *this;
   }
 

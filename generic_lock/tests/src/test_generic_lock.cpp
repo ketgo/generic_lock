@@ -107,4 +107,63 @@ TEST_F(GenericLockTestFixture, TestConstructorAdoptOwning) {
   ASSERT_TRUE(mutex.IsLocked());
 }
 
-TEST_F(GenericLockTestFixture, TestLock) {}
+TEST_F(GenericLockTestFixture, TestMoveConstructor) {
+  GenericLock<MockMutex> lock(mutex, record_id, mode, thread_id);
+  GenericLock<MockMutex> _lock(std::move(lock));
+
+  ASSERT_FALSE(lock.OwnsLock());
+  ASSERT_FALSE(lock.IsDenied());
+  ASSERT_FALSE(lock);
+  ASSERT_TRUE(_lock.OwnsLock());
+  ASSERT_FALSE(_lock.IsDenied());
+  ASSERT_TRUE(_lock);
+  ASSERT_TRUE(mutex.IsLocked());
+}
+
+TEST_F(GenericLockTestFixture, TestLockUnlock) {
+  GenericLock<MockMutex> lock(mutex, record_id, mode, thread_id, DeferLock);
+
+  lock.Lock();
+  ASSERT_TRUE(lock.OwnsLock());
+  ASSERT_FALSE(lock.IsDenied());
+  ASSERT_TRUE(lock);
+  ASSERT_TRUE(mutex.IsLocked());
+
+  lock.Unlock();
+  ASSERT_FALSE(lock.OwnsLock());
+  ASSERT_FALSE(lock.IsDenied());
+  ASSERT_FALSE(lock);
+  ASSERT_FALSE(mutex.IsLocked());
+}
+
+TEST_F(GenericLockTestFixture, TestRAII) {
+  {
+    GenericLock<MockMutex> lock(mutex, record_id, mode, thread_id);
+    ASSERT_TRUE(mutex.IsLocked());
+  }
+  ASSERT_FALSE(mutex.IsLocked());
+}
+
+TEST_F(GenericLockTestFixture, TestMoveAssignment) {
+  GenericLock<MockMutex> lock(mutex, record_id, mode, thread_id);
+  GenericLock<MockMutex> _lock;
+
+  _lock = std::move(lock);
+
+  ASSERT_FALSE(lock.OwnsLock());
+  ASSERT_FALSE(lock.IsDenied());
+  ASSERT_FALSE(lock);
+  ASSERT_TRUE(_lock.OwnsLock());
+  ASSERT_FALSE(_lock.IsDenied());
+  ASSERT_TRUE(_lock);
+  ASSERT_TRUE(mutex.IsLocked());
+}
+
+TEST_F(GenericLockTestFixture, TestAttributes) {
+  GenericLock<MockMutex> lock(mutex, record_id, mode, thread_id);
+
+  ASSERT_EQ(lock.RecordId(), record_id);
+  ASSERT_EQ(lock.LockMode(), mode);
+  ASSERT_EQ(lock.ThreadId(), thread_id);
+  ASSERT_EQ(lock.Mutex(), &mutex);
+}
