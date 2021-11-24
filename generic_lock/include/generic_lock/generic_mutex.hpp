@@ -92,6 +92,8 @@ template <class RecordIdType, class LockModeType, size_t modes_count,
           class ThreadIdType = std::thread::id, size_t timeout = 300,
           class Policy = SelectMaxPolicy<ThreadIdType>>
 class GenericMutex {
+  // Contention matrix type
+  typedef ContentionMatrix<modes_count> ContentionMatrix;
   // Lock request queue type
   typedef details::LockRequestQueue<LockModeType, modes_count, ThreadIdType>
       LockRequestQueue;
@@ -104,7 +106,8 @@ class GenericMutex {
   struct LockTableEntry {
     // Granted group identifier starts with value of `1` since the first
     // group in the request queue has an identifier of `1`.
-    LockTableEntry() : queue(), cv(), granted_group_id(1) {}
+    LockTableEntry(const ContentionMatrix& contention_matrix)
+        : queue(contention_matrix), cv(), granted_group_id(1) {}
 
     LockRequestQueue queue;
     details::ConditionVariable cv;
@@ -121,14 +124,14 @@ class GenericMutex {
  public:
   // Mutex traits
   typedef RecordIdType record_id_t;
-  typedef LockModeType lok_mode_t;
+  typedef LockModeType lock_mode_t;
   typedef ThreadIdType thread_id_t;
 
   /**
    * @brief Construct a new Generic Lock object.
    *
    */
-  GenericMutex(const ContentionMatrix<modes_count>& contention_matrix)
+  GenericMutex(const ContentionMatrix& contention_matrix)
       : _contention_matrix(contention_matrix) {}
 
   // Mutex not copyable
@@ -152,7 +155,7 @@ class GenericMutex {
     UniqueLock lock(_latch);
 
     // Creates a lock table entry if it does not exist already
-    auto& entry = _table[record_id];
+    auto& entry = _table.emplace(record_id, _contention_matrix).first->second;
 
     // Emplace request in the queue of the record identifier
     auto& group_id = entry.queue.EmplaceLockRequest(mode, thread_id);
@@ -365,7 +368,7 @@ class GenericMutex {
     // Check if the request associated with the given thread identifier is
     // denied. In that case there is no need to run the deadlock check and we
     // can simply return. This avoids unnecessary deadlock checks.
-    if (_table.at(record_id).entry.queue.GetLockRequest(thread_id).IsDenied()) {
+    if (_table.at(record_id).queue.GetLockRequest(thread_id).IsDenied()) {
       return;
     }
 
@@ -387,7 +390,7 @@ class GenericMutex {
 
       // Iterate through each entry in thr lock table
       for (auto& element : _table) {
-        auto& entry = element->second;
+        auto& entry = element.second;
         // Check if the entry contains the waiting lock request for the above
         // thread identifier.
         if (entry.queue.LockRequestExists(_thread_id)) {
@@ -412,7 +415,7 @@ class GenericMutex {
   }
 
   // Lock mode contention matrix
-  const ContentionMatrix<modes_count> _contention_matrix;
+  const ContentionMatrix _contention_matrix;
   // Thread wait timeout to check for deadlocks.
   static constexpr std::chrono::milliseconds _timeout{timeout};
   // Latch for atomic modification of the lock.
