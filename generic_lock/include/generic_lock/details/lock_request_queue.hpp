@@ -16,7 +16,6 @@
 #define GENERIC_LOCK__DETAILS__LOCK_REQUEST_QUEUE_HPP
 
 #include <cassert>
-
 #include <generic_lock/details/lock_request.hpp>
 #include <generic_lock/details/lock_request_group.hpp>
 
@@ -53,7 +52,8 @@ class LockRequestQueue {
   typedef LockRequest<LockModeType> LockRequestType;
   typedef LockRequestGroup<LockModeType, modes_count, ThreadIdType>
       LockRequestGroupType;
-  typedef IndexedList<LockRequestGroupId, LockRequestGroupType> RequestGroupListType;
+  typedef IndexedList<LockRequestGroupId, LockRequestGroupType>
+      RequestGroupListType;
 
  public:
   typedef typename RequestGroupListType::Iterator Iterator;
@@ -200,6 +200,8 @@ class LockRequestQueue {
    * @returns `true` if empty else `false`.
    */
   bool Empty() const { return _groups.Empty(); }
+
+  size_t Size() const { return _groups.Size(); }
 
  private:
   /**

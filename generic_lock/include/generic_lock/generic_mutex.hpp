@@ -152,11 +152,18 @@ class GenericMutex {
             const ThreadIdType& thread_id = std::this_thread::get_id()) {
     UniqueLock lock(_latch);
 
+    std::cout << "LOCK: " << record_id << ", " << (int)mode << ", " << thread_id
+              << "\n";
+
     // Creates a lock table entry if it does not exist already
+    std::cout << "Emplacing request in table...\n";
     auto& entry = _table.emplace(record_id, _contention_matrix).first->second;
+    std::cout << _table.size() << "\n";
 
     // Emplace request in the queue of the record identifier
+    std::cout << "Emplacing request in group...\n";
     auto& group_id = entry.queue.EmplaceLockRequest(mode, thread_id);
+    std::cout << entry.queue.Size() << "\n";
     // If the request could not be emplaced then return
     if (group_id == LockRequestQueue::null_group_id) {
       return false;
@@ -174,6 +181,7 @@ class GenericMutex {
     // into wait mode.
 
     InsertDependency(entry.queue, thread_id);
+    std::cout << "Inserting dependency...\n";
     entry.cv.Wait(
         lock, _timeout,
         std::bind(&GenericMutex::DeadlockCheck, this, record_id, thread_id),
@@ -283,7 +291,7 @@ class GenericMutex {
 
     // Iterate through the queue starting right after the given threads request
     // group till the end of the queue. All the requests in these groups are
-    // dependnet on the request of the given thread.
+    // dependent on the request of the given thread.
     ++group_it;
     while (group_it != queue.End()) {
       for (auto request_it = group_it->value.Begin();
