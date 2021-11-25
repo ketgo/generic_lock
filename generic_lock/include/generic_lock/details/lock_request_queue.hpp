@@ -50,14 +50,14 @@ class LockRequestQueue {
   static constexpr LockRequestGroupId null_group_id = 0;
 
  private:
-  typedef LockRequest<LockModeType> LockRequest;
+  typedef LockRequest<LockModeType> LockRequestType;
   typedef LockRequestGroup<LockModeType, modes_count, ThreadIdType>
-      LockRequestGroup;
-  typedef IndexedList<LockRequestGroupId, LockRequestGroup> RequestGroupList;
+      LockRequestGroupType;
+  typedef IndexedList<LockRequestGroupId, LockRequestGroupType> RequestGroupListType;
 
  public:
-  typedef typename RequestGroupList::Iterator Iterator;
-  typedef typename RequestGroupList::ConstIterator ConstIterator;
+  typedef typename RequestGroupListType::Iterator Iterator;
+  typedef typename RequestGroupListType::ConstIterator ConstIterator;
 
   /**
    * @brief Construct a new Lock Request Queue object.
@@ -115,7 +115,7 @@ class LockRequestQueue {
    * @param thread_id Constant reference to the thread identifier.
    * @returns Reference to the lock request.
    */
-  LockRequest& GetLockRequest(const ThreadIdType& thread_id) {
+  LockRequestType& GetLockRequest(const ThreadIdType& thread_id) {
     auto& group_id = _group_id_map.at(thread_id);
     return _groups.At(group_id).GetLockRequest(thread_id);
   }
@@ -127,7 +127,7 @@ class LockRequestQueue {
    * @param thread_id Constant reference to the thread identifier.
    * @returns Constant Reference to the lock request.
    */
-  const LockRequest& GetLockRequest(const ThreadIdType& thread_id) const {
+  const LockRequestType& GetLockRequest(const ThreadIdType& thread_id) const {
     auto& group_id = _group_id_map.at(thread_id);
     return _groups.At(group_id).GetLockRequest(thread_id);
   }
@@ -227,7 +227,7 @@ class LockRequestQueue {
   }
 
   // List of lock request groups indexed on their group identifier
-  RequestGroupList _groups;
+  RequestGroupListType _groups;
   // Map between the thread identifiers and the associated lock request group
   // identifier.
   std::unordered_map<ThreadIdType, LockRequestGroupId> _group_id_map;

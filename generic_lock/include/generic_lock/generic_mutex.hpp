@@ -15,16 +15,14 @@
 #ifndef GENERIC_LOCK__GENERIC_MUTEX_HPP
 #define GENERIC_LOCK__GENERIC_MUTEX_HPP
 
-#include <thread>
-#include <mutex>
-#include <unordered_map>
-
-#include <generic_lock/details/dependency_graph.hpp>
 #include <generic_lock/details/condition_variable.hpp>
 #include <generic_lock/details/contention_matrix.hpp>
+#include <generic_lock/details/dependency_graph.hpp>
 #include <generic_lock/details/lock_request_queue.hpp>
-
 #include <generic_lock/recovery_policy.hpp>
+#include <mutex>
+#include <thread>
+#include <unordered_map>
 
 namespace gl {
 
@@ -93,7 +91,7 @@ template <class RecordIdType, class LockModeType, size_t modes_count,
           class Policy = SelectMaxPolicy<ThreadIdType>>
 class GenericMutex {
   // Contention matrix type
-  typedef ContentionMatrix<modes_count> ContentionMatrix;
+  typedef ContentionMatrix<modes_count> ContentionMatrixType;
   // Lock request queue type
   typedef details::LockRequestQueue<LockModeType, modes_count, ThreadIdType>
       LockRequestQueue;
@@ -106,7 +104,7 @@ class GenericMutex {
   struct LockTableEntry {
     // Granted group identifier starts with value of `1` since the first
     // group in the request queue has an identifier of `1`.
-    LockTableEntry(const ContentionMatrix& contention_matrix)
+    LockTableEntry(const ContentionMatrixType& contention_matrix)
         : queue(contention_matrix), cv(), granted_group_id(1) {}
 
     LockRequestQueue queue;
@@ -131,7 +129,7 @@ class GenericMutex {
    * @brief Construct a new Generic Lock object.
    *
    */
-  GenericMutex(const ContentionMatrix& contention_matrix)
+  GenericMutex(const ContentionMatrixType& contention_matrix)
       : _contention_matrix(contention_matrix) {}
 
   // Mutex not copyable
@@ -415,7 +413,7 @@ class GenericMutex {
   }
 
   // Lock mode contention matrix
-  const ContentionMatrix _contention_matrix;
+  const ContentionMatrixType _contention_matrix;
   // Thread wait timeout to check for deadlocks.
   static constexpr std::chrono::milliseconds _timeout{timeout};
   // Latch for atomic modification of the lock.

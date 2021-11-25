@@ -63,6 +63,7 @@ if(${SOURCES})
     )
     target_link_libraries(
         ${LIB} 
+        PUBLIC
         # NOTE: Add any required dependencies here
     )
     # Add libraries to link for lib
@@ -71,6 +72,8 @@ if(${SOURCES})
     else()
         target_compile_definitions(${LIB} PUBLIC NDEBUG)
     endif()
+    # Setup code coverage
+    target_code_coverage(${LIB})
 else()
     # Create interface lib for running test suits
     add_library(${LIB} INTERFACE)
@@ -82,6 +85,8 @@ else()
     else()
         target_compile_definitions(${LIB} INTERFACE NDEBUG)
     endif()
+    # Setup code coverage
+    target_code_coverage(${LIB} INTERFACE)
 endif()
 
 # --------------------------------------------

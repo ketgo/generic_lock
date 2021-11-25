@@ -15,8 +15,8 @@
 #ifndef GENERIC_LOCK__DETAILS__LOCK_REQUEST_GROUP_HPP
 #define GENERIC_LOCK__DETAILS__LOCK_REQUEST_GROUP_HPP
 
-#include <generic_lock/details/indexed_list.hpp>
 #include <generic_lock/details/contention_matrix.hpp>
+#include <generic_lock/details/indexed_list.hpp>
 #include <generic_lock/details/lock_request.hpp>
 
 namespace gl {
@@ -36,12 +36,12 @@ namespace details {
  */
 template <class LockModeType, size_t modes_count, class ThreadIdType>
 class LockRequestGroup {
-  typedef LockRequest<LockModeType> LockRequest;
-  typedef IndexedList<ThreadIdType, LockRequest> LockRequestList;
+  typedef LockRequest<LockModeType> LockRequestType;
+  typedef IndexedList<ThreadIdType, LockRequestType> LockRequestListType;
 
  public:
-  typedef typename LockRequestList::Iterator Iterator;
-  typedef typename LockRequestList::ConstIterator ConstIterator;
+  typedef typename LockRequestListType::Iterator Iterator;
+  typedef typename LockRequestListType::ConstIterator ConstIterator;
 
   /**
    * @brief Construct a new Lock Request Group object
@@ -86,7 +86,7 @@ class LockRequestGroup {
    * @param thread_id Constant reference to the thread identifier.
    * @returns Reference to the lock request.
    */
-  LockRequest& GetLockRequest(const ThreadIdType& thread_id) {
+  LockRequestType& GetLockRequest(const ThreadIdType& thread_id) {
     return _requests.At(thread_id);
   }
 
@@ -97,7 +97,7 @@ class LockRequestGroup {
    * @param thread_id Constant reference to the thread identifier.
    * @returns Constant reference to the lock request.
    */
-  const LockRequest& GetLockRequest(const ThreadIdType& thread_id) const {
+  const LockRequestType& GetLockRequest(const ThreadIdType& thread_id) const {
     return _requests.At(thread_id);
   }
 
@@ -156,7 +156,7 @@ class LockRequestGroup {
 
  private:
   // Indexed list of lock requests which are part of the group.
-  LockRequestList _requests;
+  LockRequestListType _requests;
 };
 
 }  // namespace details

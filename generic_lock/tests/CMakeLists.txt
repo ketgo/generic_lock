@@ -32,17 +32,8 @@ add_executable(
 target_include_directories(
     ${TEST_BINARY} 
     PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-
-# Setup code coverage
-target_code_coverage(${TEST_BINARY} AUTO)
-
-# Add tests folder to targets include directories
-target_include_directories(
-    ${TEST_BINARY}
-    PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 # Add preprocessor definitions
@@ -51,7 +42,11 @@ target_compile_definitions( ${TEST_BINARY} PRIVATE __TESTING__)
 # Add libraries to link
 target_link_libraries(
     ${TEST_BINARY}
+    PRIVATE
     ${LIB}
     gtest
     gmock
 )
+
+# Setup code coverage
+target_code_coverage(${TEST_BINARY})
