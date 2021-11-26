@@ -64,9 +64,12 @@ TEST_F(LockRequestQueueTestFixture, TestEmplaceGetRequest) {
 
 TEST_F(LockRequestQueueTestFixture, TestEmplaceRequestGetGroupId) {
   // Emplace request into an empty queue
-  auto result = queue.EmplaceLockRequest(LockMode::READ, 1);
+  auto result_1 = queue.EmplaceLockRequest(LockMode::READ, 1);
+  // Emplace request in agreement with the last group
+  auto result_2 = queue.EmplaceLockRequest(LockMode::READ, 2);
 
-  ASSERT_EQ(result, queue.GetGroupId(1));
+  ASSERT_EQ(result_1, queue.GetGroupId(1));
+  ASSERT_EQ(result_2, queue.GetGroupId(2));
 }
 
 TEST_F(LockRequestQueueTestFixture, TestEmplaceRemoveGetRequest) {
@@ -77,4 +80,5 @@ TEST_F(LockRequestQueueTestFixture, TestEmplaceRemoveGetRequest) {
   queue.RemoveLockRequest(1);
   ASSERT_THROW(queue.GetGroupId(1), std::out_of_range);
   ASSERT_THROW(queue.GetLockRequest(1), std::out_of_range);
+  ASSERT_EQ(queue.Size(), 0);
 }

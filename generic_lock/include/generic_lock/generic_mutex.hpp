@@ -172,7 +172,6 @@ class GenericMutex {
     // granted. Furthermore, the thread is dependent on the prior requests to be
     // granted. We thus have to update the dependency graph and put the thread
     // into wait mode.
-
     InsertDependency(entry.queue, thread_id);
     entry.cv.Wait(
         lock, _timeout,
@@ -283,7 +282,7 @@ class GenericMutex {
 
     // Iterate through the queue starting right after the given threads request
     // group till the end of the queue. All the requests in these groups are
-    // dependnet on the request of the given thread.
+    // dependent on the request of the given thread.
     ++group_it;
     while (group_it != queue.End()) {
       for (auto request_it = group_it->value.Begin();
@@ -292,6 +291,7 @@ class GenericMutex {
         // calls to the method will have the desired null effect.
         _dependency_graph.Add(request_it->key, thread_id);
       }
+      ++group_it;
     }
   }
 
@@ -320,6 +320,7 @@ class GenericMutex {
         // duplicate calls to the method has the desired null effect.
         _dependency_graph.Remove(thread_id, request_it->key);
       }
+      ++group_it;
     }
 
     // Iterate through the queue starting right after the given threads request
@@ -333,6 +334,7 @@ class GenericMutex {
         // duplicate calls to the method has the desired null effect.
         _dependency_graph.Remove(request_it->key, thread_id);
       }
+      ++group_it;
     }
   }
 

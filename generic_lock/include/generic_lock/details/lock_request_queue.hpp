@@ -16,7 +16,6 @@
 #define GENERIC_LOCK__DETAILS__LOCK_REQUEST_QUEUE_HPP
 
 #include <cassert>
-
 #include <generic_lock/details/lock_request.hpp>
 #include <generic_lock/details/lock_request_group.hpp>
 
@@ -53,7 +52,8 @@ class LockRequestQueue {
   typedef LockRequest<LockModeType> LockRequestType;
   typedef LockRequestGroup<LockModeType, modes_count, ThreadIdType>
       LockRequestGroupType;
-  typedef IndexedList<LockRequestGroupId, LockRequestGroupType> RequestGroupListType;
+  typedef IndexedList<LockRequestGroupId, LockRequestGroupType>
+      RequestGroupListType;
 
  public:
   typedef typename RequestGroupListType::Iterator Iterator;
@@ -100,6 +100,7 @@ class LockRequestQueue {
     auto& last_group = _groups.Back();
     if (last_group.value.EmplaceLockRequest(mode, thread_id,
                                             _contention_matrix)) {
+      _group_id_map[thread_id] = last_group.key;
       return last_group.key;
     }
 
@@ -140,7 +141,11 @@ class LockRequestQueue {
    */
   void RemoveLockRequest(const ThreadIdType& thread_id) {
     auto& group_id = _group_id_map.at(thread_id);
-    _groups.At(group_id).RemoveLockRequest(thread_id);
+    auto& group = _groups.At(group_id);
+    group.RemoveLockRequest(thread_id);
+    if (group.Empty()) {
+      _groups.Erase(group_id);
+    }
     _group_id_map.erase(thread_id);
   }
 
@@ -200,6 +205,13 @@ class LockRequestQueue {
    * @returns `true` if empty else `false`.
    */
   bool Empty() const { return _groups.Empty(); }
+
+  /**
+   * @brief Get the number of request groups in the queue.
+   *
+   * @returns Number of request groups in the queue
+   */
+  size_t Size() const { return _groups.Size(); }
 
  private:
   /**
