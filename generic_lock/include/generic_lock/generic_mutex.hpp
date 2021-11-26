@@ -152,18 +152,11 @@ class GenericMutex {
             const ThreadIdType& thread_id = std::this_thread::get_id()) {
     UniqueLock lock(_latch);
 
-    std::cout << "LOCK: " << record_id << ", " << (int)mode << ", " << thread_id
-              << "\n";
-
     // Creates a lock table entry if it does not exist already
-    std::cout << "Emplacing request in table...\n";
     auto& entry = _table.emplace(record_id, _contention_matrix).first->second;
-    std::cout << _table.size() << "\n";
 
     // Emplace request in the queue of the record identifier
-    std::cout << "Emplacing request in group...\n";
     auto& group_id = entry.queue.EmplaceLockRequest(mode, thread_id);
-    std::cout << entry.queue.Size() << "\n";
     // If the request could not be emplaced then return
     if (group_id == LockRequestQueue::null_group_id) {
       return false;
@@ -179,9 +172,7 @@ class GenericMutex {
     // granted. Furthermore, the thread is dependent on the prior requests to be
     // granted. We thus have to update the dependency graph and put the thread
     // into wait mode.
-
     InsertDependency(entry.queue, thread_id);
-    std::cout << "Inserting dependency...\n";
     entry.cv.Wait(
         lock, _timeout,
         std::bind(&GenericMutex::DeadlockCheck, this, record_id, thread_id),
@@ -300,6 +291,7 @@ class GenericMutex {
         // calls to the method will have the desired null effect.
         _dependency_graph.Add(request_it->key, thread_id);
       }
+      ++group_it;
     }
   }
 
@@ -328,6 +320,7 @@ class GenericMutex {
         // duplicate calls to the method has the desired null effect.
         _dependency_graph.Remove(thread_id, request_it->key);
       }
+      ++group_it;
     }
 
     // Iterate through the queue starting right after the given threads request
@@ -341,6 +334,7 @@ class GenericMutex {
         // duplicate calls to the method has the desired null effect.
         _dependency_graph.Remove(request_it->key, thread_id);
       }
+      ++group_it;
     }
   }
 
