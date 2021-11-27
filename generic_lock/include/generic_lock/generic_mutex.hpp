@@ -19,7 +19,7 @@
 #include <generic_lock/details/contention_matrix.hpp>
 #include <generic_lock/details/dependency_graph.hpp>
 #include <generic_lock/details/lock_request_queue.hpp>
-#include <generic_lock/recovery_policy.hpp>
+#include <generic_lock/selection_policy.hpp>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -83,12 +83,12 @@ using ContentionMatrix = details::ContentionMatrix<modes_count>;
  * `std::thread::id`.
  * @tparam timeout The time in milliseconds to wait before checking for
  * deadlock. Default set to `300`.
- * @tparam Policy Deadlock recovery policy type. Default set to
- * `SelectMaxPolicy<ThreadIdType>`.
+ * @tparam SelectionPolicy Deadlock recovery selection policy type. Default set
+ * to `SelectMaxPolicy<ThreadIdType>`.
  */
 template <class RecordIdType, class LockModeType, size_t modes_count,
           class ThreadIdType = std::thread::id, size_t timeout = 300,
-          class Policy = SelectMaxPolicy<ThreadIdType>>
+          class SelectionPolicy = SelectMaxPolicy<ThreadIdType>>
 class GenericMutex {
   // Contention matrix type
   typedef ContentionMatrix<modes_count> ContentionMatrixType;
@@ -366,18 +366,19 @@ class GenericMutex {
   void DeadlockCheck(const RecordIdType& record_id,
                      const ThreadIdType& thread_id) {
     // Check if the request associated with the given thread identifier is
-    // denied. In that case there is no need to run the deadlock check and we
-    // can simply return. This avoids unnecessary deadlock checks.
+    // denied. In that case there is no need to run the deadlock check and
+    // we can simply return. This avoids unnecessary deadlock checks.
     if (_table.at(record_id).queue.GetLockRequest(thread_id).IsDenied()) {
       return;
     }
 
-    // Instantiates recovery policy
-    Policy policy;
-
     // Search for presence of deadlock
-    if (_dependency_graph.DetectCycle(thread_id, policy)) {
-      auto& _thread_id = policy.Get();
+    auto cycle = _dependency_graph.DetectCycle(thread_id);
+    if (!cycle.empty()) {
+      // Instantiates selection policy for deadlock recovery
+      SelectionPolicy policy;
+      // Select thread identifer to deny request for deadlock recovery
+      auto _thread_id = policy(cycle);
 
       // Deny the waiting request of `_thread_id` identifier. Note that even
       // though multiple granted requests from the thread can exist in the lock
@@ -388,7 +389,7 @@ class GenericMutex {
       // an API method `GetWaitingRequest(const ThreadIdType& thread_id)` which
       // implements O(1) request retrival.
 
-      // Iterate through each entry in thr lock table
+      // Iterate through each entry in the lock table
       for (auto& element : _table) {
         auto& entry = element.second;
         // Check if the entry contains the waiting lock request for the above

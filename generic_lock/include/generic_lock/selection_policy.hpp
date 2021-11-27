@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef GENERIC_LOCK__RECOVERY_POLICY_HPP
-#define GENERIC_LOCK__RECOVERY_POLICY_HPP
+#ifndef GENERIC_LOCK__SELECTION_POLICY_HPP
+#define GENERIC_LOCK__SELECTION_POLICY_HPP
 
 #include <set>
 
@@ -37,26 +37,17 @@ class SelectMaxPolicy {
    *
    * @param thread_ids Reference to the set of thread identifiers.
    */
-  void operator()(std::set<ThreadIdType>& thread_ids) {
-    _it = thread_ids.begin();
+  ThreadIdType operator()(std::set<ThreadIdType>& thread_ids) {
+    auto _it = thread_ids.begin();
     for (auto it = thread_ids.begin(); it != thread_ids.end(); ++it) {
       if (*_it < *it) {
         _it = it;
       }
     }
+    return *_it;
   }
-
-  /**
-   * @brief Get the thread identifier selected by the policy.
-   *
-   * @returns Constant reference to the policy selected thread identifier.
-   */
-  const ThreadIdType& Get() const { return *_it; }
-
- private:
-  typename std::set<ThreadIdType>::iterator _it;
 };
 
 }  // namespace gl
 
-#endif /* GENERIC_LOCK__RECOVERY_POLICY_HPP */
+#endif /* GENERIC_LOCK__SELECTION_POLICY_HPP */

@@ -49,4 +49,9 @@ target_link_libraries(
 )
 
 # Setup code coverage
-target_code_coverage(${TEST_BINARY})
+target_code_coverage(
+    ${TEST_BINARY}
+    EXCLUDE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/*
+    ${PROJECT_SOURCE_DIR}/third_party/*
+)

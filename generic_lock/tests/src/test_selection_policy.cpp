@@ -13,20 +13,19 @@
 // limitations under the License.
 
 /**
- * @brief Uint Test Recovery Policies
+ * @brief Uint Test Selection Policies
  *
  */
 
 #include <gtest/gtest.h>
 
-#include <generic_lock/recovery_policy.hpp>
+#include <generic_lock/selection_policy.hpp>
 
 using namespace gl;
 
-TEST(RecoveryPolicyTestFixture, SelectMaxPolicy) {
+TEST(SelectionPolicyTestFixture, SelectMaxPolicy) {
   SelectMaxPolicy<size_t> policy;
   std::set<size_t> thread_ids = {1, 5, 2, 15, 7, 3, 11};
 
-  policy(thread_ids);
-  ASSERT_EQ(policy.Get(), 15);
+  ASSERT_EQ(policy(thread_ids), 15);
 }

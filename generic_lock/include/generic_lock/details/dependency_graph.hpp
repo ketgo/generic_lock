@@ -99,37 +99,30 @@ class DependencyGraph {
   }
 
   /**
-   * @brief Detects a cycle in the dependency graph. If a cycle is observed then
-   * a callback is called with the set of thread identifiers that are part of
-   * the detected cycle as argument. Thus the callback should have a signature
-   * `void callback(std::set<T>&)`. Furthermore, the method returns `true` if a
-   * cycle was observed, otherwise `false`.
+   * @brief Detects a cycle in the dependency graph starting lookup from the
+   * given identifier. The method returns the set of identifiers forming the
+   * cycle. If the set is empty then no cycle was observed.
    *
    * @param id Constant reference to the thread identifier from where to start
    * lookup. This identifier should exist in the dependency graph.
-   * @param callback The cycle handler callback.
-   * @returns `true` if a cycle was detected else `false`.
+   * @returns Set of thread identifiers forming a cycle in the dependency graph.
    */
-  template <class CycleHandler>
-  bool DetectCycle(const T& id, CycleHandler callback) const {
+  std::set<T> DetectCycle(const T& id) const {
     std::unordered_map<T, T> parents;
     std::unordered_map<T, bool> visited;
+    std::set<T> rvalue;
 
     auto result = DetectCycle(id, parents, visited);
     if (result.second) {
-      // Create the set of identifiers constructing the observed cycle
-      std::set<T> ids;
-      ids.insert(result.first);
+      rvalue.insert(result.first);
       auto node = parents.at(result.first);
       while (node != result.first) {
-        ids.insert(node);
+        rvalue.insert(node);
         node = parents.at(node);
       }
-      // Call the cycle handler callback
-      callback(ids);
     }
 
-    return result.second;
+    return rvalue;
   }
 
  private:
