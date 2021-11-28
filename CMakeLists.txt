@@ -28,7 +28,6 @@ enable_testing()
 
 include(c++-standards)
 include(code-coverage)
-include(formatting)
 include(sanitizers)
 include(tools)
 

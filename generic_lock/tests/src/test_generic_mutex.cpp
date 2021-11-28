@@ -20,9 +20,10 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <thread>
+
 #include <generic_lock/generic_lock.hpp>
 #include <generic_lock/generic_mutex.hpp>
-#include <thread>
 
 using namespace gl;
 using namespace std::chrono_literals;

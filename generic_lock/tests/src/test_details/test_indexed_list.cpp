@@ -20,6 +20,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+
 #include <generic_lock/details/indexed_list.hpp>
 
 using namespace gl::details;
