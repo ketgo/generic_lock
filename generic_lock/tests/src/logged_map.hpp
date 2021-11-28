@@ -15,113 +15,9 @@
 #ifndef LOGGED_MAP_HPP
 #define LOGGED_MAP_HPP
 
-#include <list>
 #include <unordered_map>
-#include <mutex>
 
-namespace {
-
-/**
- * @brief A thread-safe operation log containing sequential records of
- * operations performed on a shared map by multiple threads.
- *
- * Note that the iterator API of the container is not thread safe.
- *
- * @tparam T Operation record type.
- */
-template <class T>
-class Log {
-  typedef std::list<T> queue_t;
-
- public:
-  typedef typename queue_t::iterator iterator_t;
-  typedef typename queue_t::const_iterator const_iterator_t;
-
-  template <class... Args>
-  void emplace(Args&&... args) {
-    std::lock_guard guard(_mutex);
-    _list.emplace_back(std::forward<Args>(args)...);
-  }
-
-  void push(const T& value) {
-    std::lock_guard guard(_mutex);
-    _list.push_back(value);
-  }
-
-  void pop() {
-    std::lock_guard guard(_mutex);
-    _list.pop_front();
-  }
-
-  T front() {
-    std::lock_guard guard(_mutex);
-    return _list.front();
-  }
-
-  const T front() const {
-    std::lock_guard guard(_mutex);
-    return _list.front();
-  }
-
-  T back() {
-    std::lock_guard guard(_mutex);
-    return _list.back();
-  }
-
-  const T back() const {
-    std::lock_guard guard(_mutex);
-    return _list.back();
-  }
-
-  iterator_t begin() {
-    std::lock_guard guard(_mutex);
-    return _list.begin();
-  }
-
-  const_iterator_t begin() const {
-    std::lock_guard guard(_mutex);
-    return _list.begin();
-  }
-
-  iterator_t end() {
-    std::lock_guard guard(_mutex);
-    return _list.end();
-  }
-
-  const_iterator_t end() const {
-    std::lock_guard guard(_mutex);
-    return _list.end();
-  }
-
- private:
-  mutable std::mutex _mutex;
-  queue_t _list;
-};
-
-/**
- * @brief The record stores the type of operation performed on a map along with
- * the identifier of the thread performing the operation. There are two types of
- * operations supported: READ and WRITE. For the READ operation, the data
- * structure stored the key and associated value read. In case of the WRITE
- * operation the key and value written are stored.
- *
- * @tparam T The thread identifier type.
- * @tparam K The type of key.
- * @tparam V The type of value.
- */
-template <class T, class K, class V>
-struct Operation {
-  T thread_id;
-  enum class Type { READ, WRITE } type;
-  K key;
-  V value;
-
-  Operation() = default;
-  Operation(const T& thread_id, const Type& type, const K& key, const V& value)
-      : thread_id(thread_id), type(type), key(key), value(value) {}
-};
-
-}  // namespace
+#include "op_log.hpp"
 
 /**
  * @brief A map container with all its succesfully performed operations logged.
@@ -138,10 +34,36 @@ struct Operation {
 template <class T, class K, class V>
 class LoggedMap {
   typedef std::unordered_map<K, V> map_t;
-  typedef ::Operation<T, K, V> op_record_t;
-  typedef ::Log<op_record_t> op_log_t;
 
  public:
+  /**
+   * @brief The record stores the type of operation performed on a map along
+   * with the identifier of the thread performing the operation. There are two
+   * types of operations supported: READ and WRITE. For the READ operation, the
+   * data structure stored the key and associated value read. In case of the
+   * WRITE operation the key and value written are stored.
+   *
+   */
+  struct OpRecord {
+    T thread_id;
+    enum class Type { READ, WRITE } type;
+    K key;
+    V value;
+
+    OpRecord() = default;
+    OpRecord(const T& thread_id, const Type& type, const K& key, const V& value)
+        : thread_id(thread_id), type(type), key(key), value(value) {}
+  };
+  /**
+   * @brief Operation log type.
+   *
+   */
+  typedef OpLog<OpRecord> op_log_t;
+
+  /**
+   * @brief Construct a new Logged Map object.
+   *
+   */
   template <class... Args>
   LoggedMap(Args&&... args) : _map(std::forward<Args>(args)...), _op_log() {}
   LoggedMap(std::initializer_list<typename map_t::value_type> li)
@@ -158,7 +80,7 @@ class LoggedMap {
    */
   const V& Get(const T& thread_id, const K& key) const {
     auto& value = _map.at(key);
-    _op_log.emplace(thread_id, op_record_t::Type::READ, key, value);
+    _op_log.emplace(thread_id, OpRecord::Type::READ, key, value);
     return value;
   }
 
@@ -176,7 +98,7 @@ class LoggedMap {
     if (!result.second) {
       result.first->second = value;
     }
-    _op_log.emplace(thread_id, op_record_t::Type::WRITE, key, value);
+    _op_log.emplace(thread_id, OpRecord::Type::WRITE, key, value);
   }
 
   /**
@@ -184,7 +106,7 @@ class LoggedMap {
    *
    * @returns Constant reference to the operation log.
    */
-  const op_log_t& OpLog() const { return _op_log; }
+  const op_log_t& OperationLog() const { return _op_log; }
 
  private:
   map_t _map;
