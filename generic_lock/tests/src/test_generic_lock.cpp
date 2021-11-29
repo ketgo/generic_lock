@@ -29,6 +29,7 @@ class GenericLockTestFixture : public ::testing::Test {
   typedef size_t ThreadId;
   enum class LockMode { READ, WRITE };
 
+  // ------------------------------------------
   const RecordId record_id = 1;
   const LockMode mode = LockMode::WRITE;
   const ThreadId thread_id = 1;
@@ -62,6 +63,7 @@ class GenericLockTestFixture : public ::testing::Test {
    private:
     bool _locked;
   } mutex;
+  // ------------------------------------------
 
   void SetUp() override {}
   void TearDown() override {}

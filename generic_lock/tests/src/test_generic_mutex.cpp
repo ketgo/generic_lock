@@ -12,18 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/**
- * @brief Uint Test Generic Mutex
- *
- */
-
 #include <gtest/gtest.h>
 
 #include <chrono>
 #include <thread>
+#include <unordered_map>
 
 #include <generic_lock/generic_lock.hpp>
 #include <generic_lock/generic_mutex.hpp>
+
+#include "event_log.hpp"
 
 using namespace gl;
 using namespace std::chrono_literals;
@@ -32,10 +30,10 @@ class GenericMutexTestFixture : public ::testing::Test {
  protected:
   typedef size_t RecordId;
   typedef size_t ThreadId;
-
   static constexpr auto thread_sleep = 5ms;
   static constexpr size_t timeout_ms = 1;
 
+  // ----------------------------
   enum class LockMode { READ, WRITE };
   const ContentionMatrix<2> contention_matrix = {
       {{{false, true}}, {{true, true}}}};
@@ -43,120 +41,186 @@ class GenericMutexTestFixture : public ::testing::Test {
   typedef GenericMutex<RecordId, LockMode, 2, ThreadId, timeout_ms>
       GenericMutexType;
   GenericMutexType mutex = {contention_matrix};
-  typedef GenericLock<GenericMutexType> GenericLockType;
+  // ----------------------------
 
-  typedef std::unordered_map<int, char> Records;
-  struct Op {
-    Op(const ThreadId& thread_id = 0, const bool& write = false,
-       const int& key = 0, const char& value = 0)
-        : thread_id(thread_id), write(write), key(key), value(value) {}
+  // ----------------------------
+  // TODO: Use a mock instead of GenericLock.
+  typedef GenericLock<GenericMutexType> LockGuard;
+  // ----------------------------
 
+  // ---------------------------
+  // Operation record
+  struct OpRecord {
     ThreadId thread_id;
-    bool write;
-    int key;
+    enum class Type { READ, WRITE } type;
+    RecordId record_id;
     char value;
+
+    OpRecord() = default;
+    OpRecord(const ThreadId& thread_id, const Type& type,
+             const RecordId& record_id, const char& value)
+        : thread_id(thread_id),
+          type(type),
+          record_id(record_id),
+          value(value) {}
   };
-  typedef std::vector<Op> OpGroup;
+  // Group of operation records
+  typedef std::vector<OpRecord> OpRecordGroup;
+  // Stores operations performed by multiple threads in chronological order
+  typedef EventLog<OpRecord> OpLog;
+  OpLog op_log;
+  // Records shared by multiple threads
+  typedef std::unordered_map<RecordId, char> Records;
+  Records records = {{0, '0'}, {1, '1'}};
+  // ---------------------------
+
+  // ---------------------------
+  // Lock request data
+  struct LockRequest {
+    RecordId record_id;
+    LockMode mode;
+    ThreadId thread_id;
+    size_t seq;
+    bool granted;
+
+    LockRequest(const RecordId& record_id, const LockMode& mode,
+                const ThreadId& thread_id, const size_t& seq,
+                const bool& granted)
+        : record_id(record_id),
+          mode(mode),
+          thread_id(thread_id),
+          seq(seq),
+          granted(granted) {}
+  };
+  // Stores result for lock request by multiple thread in chronological order
+  typedef EventLog<LockRequest> LockResultsLog;
+  LockResultsLog lock_results_log;
+  // ---------------------------
 
   void SetUp() override {}
   void TearDown() override {}
 
  public:
   /**
-   * @brief Run test in a thread by performing the given operation.
+   * @brief Run test in a thread by performing the group og operations specified
+   * in the given operation record group.
    *
-   * @param op Constant reference to the operation to perform.
-   * @param records Reference to the records to be operated.
-   */
-  void TestThreadLockUnlock(const Op& op, Records& records) {
-    std::vector<GenericLockType> guards;
-
-    if (op.write) {
-      guards.emplace_back(mutex, op.key, LockMode::WRITE, op.thread_id);
-      // Asserts that the lock request is successful.
-      // ASSERT_TRUE(guards.back());
-      records[op.key] = op.value;
-    } else {
-      guards.emplace_back(mutex, op.key, LockMode::READ, op.thread_id);
-      // Asserts that the lock request is successful.
-      // ASSERT_TRUE(guards.back());
-      // ASSERT_EQ(records[op.key], op.value);
-    }
-    std::this_thread::sleep_for(thread_sleep);
-  }
-
-  /**
-   * @brief Run test in a thread by performing the given operation.
+   * @note The method implements 2PL.
    *
-   * @param op_group Constant reference to the group of operations to perform.
-   * @param records Reference to the records to be operated.
+   * @param op_record_group Constant reference to the operation record group.
    */
-  void TestThreadDeadlock(const OpGroup& op_group, Records& records) {
-    std::vector<GenericLockType> guards;
+  void TestThread(const OpRecordGroup& op_record_group) {
+    std::vector<LockGuard> guards;
 
-    for (auto& op : op_group) {
-      if (op.write) {
-        guards.emplace_back(mutex, op.key, LockMode::WRITE, op.thread_id);
-        // Check for the transaction and operation which causes deadlock.
-        if (op.thread_id == 5 && op.key == 0) {
-          // Asserts that the lock request is denied.
-          // ASSERT_FALSE(guards.back());
-        } else {
-          // Asserts that the lock request is successful.
-          // ASSERT_TRUE(guards.back());
-        }
-        records[op.key] = op.value;
+    for (size_t i = 0; i < op_record_group.size(); ++i) {
+      auto& op_record = op_record_group[i];
+      if (op_record.type == OpRecord::Type::READ) {
+        guards.emplace_back(mutex, op_record.record_id, LockMode::READ,
+                            op_record.thread_id);
+        // Log lock request
+        lock_results_log.emplace(op_record.record_id, LockMode::READ,
+                                 op_record.thread_id, i, bool(guards.back()));
+        // Perform operation
+        auto value = records.at(op_record.record_id);
+        // Log operation
+        op_log.emplace(op_record.thread_id, OpRecord::Type::READ,
+                       op_record.record_id, value);
       } else {
-        guards.emplace_back(mutex, op.key, LockMode::READ, op.thread_id);
-        // ASSERT_EQ(records[op.key], op.value);
+        guards.emplace_back(mutex, op_record.record_id, LockMode::WRITE,
+                            op_record.thread_id);
+        // Store lock result
+        lock_results_log.emplace(op_record.record_id, LockMode::WRITE,
+                                 op_record.thread_id, i, bool(guards.back()));
+        // Perform operation
+        records[op_record.record_id] = op_record.value;
+        // Log operation
+        op_log.emplace(op_record.thread_id, OpRecord::Type::WRITE,
+                       op_record.record_id, op_record.value);
       }
-      std::this_thread::sleep_for(thread_sleep);
     }
   }
 };
 
 TEST_F(GenericMutexTestFixture, TestLockUnlock) {
-  Records records = {{0, 'a'}, {1, 'b'}};
-  const std::vector<Op> ops = {
-      {1, false, 0, 'a'},  {2, false, 0, 'a'},  {3, false, 1, 'b'},
-      {4, true, 0, 'd'},   {5, false, 0, 'd'},  {6, false, 1, 'b'},
-      {7, true, 0, 'a'},   {8, true, 1, 'e'},   {9, true, 0, 'f'},
-      {10, false, 0, 'f'}, {11, false, 0, 'f'}, {12, false, 1, 'e'}};
-  std::vector<std::thread> threads(ops.size());
-
-  // Start threads
-  for (size_t idx = 0; idx < ops.size(); ++idx) {
-    threads[idx] = std::thread(&GenericMutexTestFixture::TestThreadLockUnlock,
-                               this, ops[idx], std::ref(records));
-  }
-
-  // Wait till all threads finish
-  for (auto& thread : threads) {
-    thread.join();
-  }
-}
-
-TEST_F(GenericMutexTestFixture, TestDeadlock) {
-  Records records = {{0, '0'}, {1, '1'}, {2, '2'}};
-  // Transaction 5 causes deadlock with 2
-  const std::vector<OpGroup> op_groups = {
-      {{1, true, 0, 'a'}},
-      {{2, true, 0, 'b'}, {2, true, 1, 'b'}, {2, true, 2, 'b'}},
-      {{3, true, 0, 'd'}},
-      {{4, true, 0, 'e'}, {4, true, 1, 'e'}},
-      {{5, true, 1, 'f'}, {5, true, 0, 'f'}},
-      {{6, true, 1, 'g'}},
-      {{7, true, 1, 'h'}, {7, true, 2, 'h'}}};
+  const std::vector<OpRecordGroup> op_groups = {
+      {{1, OpRecord::Type::READ, 0, ' '}},
+      {{2, OpRecord::Type::READ, 0, ' '}},
+      {{3, OpRecord::Type::READ, 1, ' '}},
+      {{4, OpRecord::Type::WRITE, 0, 'd'}},
+      {{5, OpRecord::Type::READ, 0, ' '}},
+      {{6, OpRecord::Type::READ, 1, ' '}},
+      {{7, OpRecord::Type::WRITE, 0, 'a'}},
+      {{8, OpRecord::Type::WRITE, 1, 'e'}},
+      {{9, OpRecord::Type::WRITE, 0, 'f'}},
+      {{10, OpRecord::Type::READ, 0, ' '}},
+      {{11, OpRecord::Type::READ, 0, ' '}},
+      {{12, OpRecord::Type::READ, 1, ' '}}};
   std::vector<std::thread> threads(op_groups.size());
 
   // Start threads
   for (size_t idx = 0; idx < op_groups.size(); ++idx) {
-    threads[idx] = std::thread(&GenericMutexTestFixture::TestThreadDeadlock,
-                               this, op_groups[idx], std::ref(records));
+    threads[idx] = std::thread(&GenericMutexTestFixture::TestThread, this,
+                               std::ref(op_groups[idx]));
   }
 
   // Wait till all threads finish
   for (auto& thread : threads) {
     thread.join();
+  }
+
+  // Assert all lock request results
+  for (auto& lock_results : lock_results_log) {
+    ASSERT_TRUE(lock_results.granted);
+  }
+
+  // Assert outcome based on operation log
+  Records _records = {{0, '0'}, {1, '1'}};
+  for (auto& op_record : op_log) {
+    if (op_record.type == OpRecord::Type::READ) {
+      ASSERT_EQ(_records[op_record.record_id], op_record.value);
+    } else {
+      _records[op_record.record_id] = op_record.value;
+    }
+  }
+}
+
+TEST_F(GenericMutexTestFixture, TestDedlockRecovery) {
+  const std::vector<OpRecordGroup> op_groups = {
+      {{1, OpRecord::Type::WRITE, 0, 'a'}},
+      {{2, OpRecord::Type::WRITE, 0, 'b'},
+       {2, OpRecord::Type::WRITE, 1, 'b'},
+       {2, OpRecord::Type::WRITE, 2, 'b'}},
+      {{3, OpRecord::Type::WRITE, 0, 'd'}},
+      {{4, OpRecord::Type::WRITE, 0, 'e'}, {4, OpRecord::Type::WRITE, 1, 'e'}},
+      {{5, OpRecord::Type::WRITE, 1, 'f'}, {5, OpRecord::Type::WRITE, 0, 'f'}},
+      {{6, OpRecord::Type::WRITE, 1, 'g'}},
+      {{7, OpRecord::Type::WRITE, 1, 'h'}, {7, OpRecord::Type::WRITE, 2, 'h'}}};
+
+  std::vector<std::thread> threads(op_groups.size());
+
+  // Start threads
+  for (size_t idx = 0; idx < op_groups.size(); ++idx) {
+    threads[idx] = std::thread(&GenericMutexTestFixture::TestThread, this,
+                               std::ref(op_groups[idx]));
+  }
+
+  // Wait till all threads finish
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  // Assert all lock request results
+  for (auto& lock_results : lock_results_log) {
+    ASSERT_TRUE(lock_results.granted);
+  }
+
+  // Assert outcome based on operation log
+  Records _records = {{0, '0'}, {1, '1'}};
+  for (auto& op_record : op_log) {
+    if (op_record.type == OpRecord::Type::READ) {
+      ASSERT_EQ(_records[op_record.record_id], op_record.value);
+    } else {
+      _records[op_record.record_id] = op_record.value;
+    }
   }
 }

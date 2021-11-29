@@ -32,13 +32,13 @@ class ConditionVariableTestFixture : public ::testing::Test {
   template <class T>
   class TestQueue {
    public:
-    TestQueue() : _mutex(), _cv(), callbacked(false), queue() {}
+    TestQueue() : _mutex(), _cv(), callback_called(false), queue() {}
 
     T Get() const {
       std::unique_lock<std::mutex> lock(_mutex);
 
       _cv.Wait(
-          lock, timeout, [&]() { callbacked = true; },
+          lock, timeout, [&]() { callback_called = true; },
           [&]() { return !queue.empty(); });
       return queue.back();
     }
@@ -51,7 +51,7 @@ class ConditionVariableTestFixture : public ::testing::Test {
     }
 
     std::vector<T> queue;
-    mutable bool callbacked;
+    mutable bool callback_called;
     static constexpr auto timeout = 5ms;
 
    private:
@@ -64,11 +64,16 @@ class ConditionVariableTestFixture : public ::testing::Test {
   void TearDown() override {}
 };
 
+/**
+ * @note The following case only tests for the new funcionality added to
+ * std::condition_variable.
+ *
+ */
 TEST_F(ConditionVariableTestFixture, TestWait) {
   std::thread thread_a, thread_b;
   int value;
 
-  ASSERT_FALSE(queue.callbacked);
+  ASSERT_FALSE(queue.callback_called);
 
   // Start threads
   thread_a = std::thread([&]() {
@@ -82,5 +87,5 @@ TEST_F(ConditionVariableTestFixture, TestWait) {
   thread_b.join();
 
   ASSERT_EQ(value, 10);
-  ASSERT_TRUE(queue.callbacked);
+  ASSERT_TRUE(queue.callback_called);
 }
