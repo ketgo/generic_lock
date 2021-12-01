@@ -30,7 +30,7 @@ class GenericMutexTestFixture : public ::testing::Test {
  protected:
   typedef size_t RecordId;
   typedef size_t ThreadId;
-  static constexpr auto thread_sleep = 5ms;
+  static constexpr auto wait_between_operations = 5ms;
   static constexpr size_t timeout_ms = 1;
 
   // ----------------------------
@@ -71,7 +71,7 @@ class GenericMutexTestFixture : public ::testing::Test {
   OpLog op_log;
   // Records shared by multiple threads
   typedef std::unordered_map<RecordId, char> Records;
-  Records records = {{0, '0'}, {1, '1'}};
+  Records records = {{0, '0'}, {1, '1'}, {2, '2'}, {3, '3'}, {4, '4'}};
   // ---------------------------
 
   // ---------------------------
@@ -137,6 +137,8 @@ class GenericMutexTestFixture : public ::testing::Test {
         op_log.emplace(op_record.thread_id, OpRecord::Type::WRITE,
                        op_record.record_id, op_record.value);
       }
+      // Wait between operations
+      std::this_thread::sleep_for(wait_between_operations);
     }
   }
 };
@@ -186,15 +188,16 @@ TEST_F(GenericMutexTestFixture, TestLockUnlock) {
 
 TEST_F(GenericMutexTestFixture, TestDedlockRecovery) {
   const std::vector<OpRecordGroup> op_groups = {
-      {{1, OpRecord::Type::WRITE, 0, 'a'}},
-      {{2, OpRecord::Type::WRITE, 0, 'b'},
+      {{1, OpRecord::Type::WRITE, 0, 'a'},
+       {1, OpRecord::Type::WRITE, 1, 'a'},
+       {1, OpRecord::Type::WRITE, 2, 'a'},
+       {1, OpRecord::Type::WRITE, 3, 'a'},
+       {1, OpRecord::Type::WRITE, 4, 'a'}},
+      {{2, OpRecord::Type::WRITE, 4, 'b'},
+       {2, OpRecord::Type::WRITE, 3, 'b'},
+       {2, OpRecord::Type::WRITE, 2, 'b'},
        {2, OpRecord::Type::WRITE, 1, 'b'},
-       {2, OpRecord::Type::WRITE, 2, 'b'}},
-      {{3, OpRecord::Type::WRITE, 0, 'd'}},
-      {{4, OpRecord::Type::WRITE, 0, 'e'}, {4, OpRecord::Type::WRITE, 1, 'e'}},
-      {{5, OpRecord::Type::WRITE, 1, 'f'}, {5, OpRecord::Type::WRITE, 0, 'f'}},
-      {{6, OpRecord::Type::WRITE, 1, 'g'}},
-      {{7, OpRecord::Type::WRITE, 1, 'h'}, {7, OpRecord::Type::WRITE, 2, 'h'}}};
+       {2, OpRecord::Type::WRITE, 0, 'b'}}};
 
   std::vector<std::thread> threads(op_groups.size());
 
@@ -209,10 +212,20 @@ TEST_F(GenericMutexTestFixture, TestDedlockRecovery) {
     thread.join();
   }
 
-  // Assert all lock request results
+  // Assert that one of the lock request by thread 2 is denied due to deadlock
+  // with thread 1. Thread 2 is denied because of the SelectMaxPolicy.
+  bool thread_1_all_granted = true;
+  bool thread_2_all_granted = true;
   for (auto& lock_results : lock_results_log) {
-    ASSERT_TRUE(lock_results.granted);
+    if (lock_results.thread_id == 1) {
+      thread_1_all_granted = thread_1_all_granted && lock_results.granted;
+    }
+    if (lock_results.thread_id == 2) {
+      thread_2_all_granted = thread_2_all_granted && lock_results.granted;
+    }
   }
+  ASSERT_TRUE(thread_1_all_granted);
+  ASSERT_FALSE(thread_2_all_granted);
 
   // Assert outcome based on operation log
   Records _records = {{0, '0'}, {1, '1'}};

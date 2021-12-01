@@ -91,7 +91,7 @@ class LockRequestQueue {
 
     // Check that a prior request by the same thread does not exist
     if (_group_id_map.find(thread_id) != _group_id_map.end()) {
-      // Prior request by the thread exists so return its group identifier.
+      // Prior request by the thread exists so return null group identifier.
       return null_group_id;
     }
 
