@@ -39,5 +39,6 @@ include(tools)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/third_party)
 add_subdirectory(${PROJECT_SOURCE_DIR}/generic_lock)
+add_subdirectory(${PROJECT_SOURCE_DIR}/docs)
 
 # ----------------------------------------------------
