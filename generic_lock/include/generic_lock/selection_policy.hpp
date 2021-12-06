@@ -20,26 +20,26 @@
 namespace gl {
 
 /**
- * @brief This policy selects the thread with the largest identifier from the
- * set of cyclic dependent threads.
+ * @brief This policy selects the transaction with the largest identifier from
+ * the set of cyclic dependent threads.
  *
- * @note This policy assumes that the thread identifier type supports `<`
+ * @note This policy assumes that the transaction identifier type supports `<`
  * operator.
  *
- * @tparam ThreadIdType The thread identifier type.
+ * @tparam TransactionId The transaction identifier type.
  */
-template <class ThreadIdType>
+template <class TransactionId>
 class SelectMaxPolicy {
  public:
   /**
    * @brief The method invokes the policy by selecting the identifier with max
    * value from the given set.
    *
-   * @param thread_ids Reference to the set of thread identifiers.
+   * @param transaction_ids Reference to the set of transaction identifiers.
    */
-  ThreadIdType operator()(std::set<ThreadIdType>& thread_ids) {
-    auto _it = thread_ids.begin();
-    for (auto it = thread_ids.begin(); it != thread_ids.end(); ++it) {
+  TransactionId operator()(std::set<TransactionId>& transaction_ids) {
+    auto _it = transaction_ids.begin();
+    for (auto it = transaction_ids.begin(); it != transaction_ids.end(); ++it) {
       if (*_it < *it) {
         _it = it;
       }

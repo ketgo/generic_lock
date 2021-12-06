@@ -29,7 +29,7 @@ class LockRequestQueueTestFixture : public ::testing::Test {
   const ContentionMatrix<2> contention_matrix = {
       {{{false, true}}, {{true, true}}}};
 
-  LockRequestQueue<LockMode, 2, size_t> queue = {contention_matrix};
+  LockRequestQueue<size_t, LockMode, 2> queue = {contention_matrix};
 
   void SetUp() override {}
   void TearDown() override {}
@@ -37,22 +37,22 @@ class LockRequestQueueTestFixture : public ::testing::Test {
 
 TEST_F(LockRequestQueueTestFixture, TestEmplaceRequest) {
   // Emplace request into an empty queue
-  auto result = queue.EmplaceLockRequest(LockMode::READ, 1);
+  auto result = queue.EmplaceLockRequest(1, LockMode::READ);
   ASSERT_EQ(result, queue.null_group_id + 1);
 
   // Another request from the same thread
-  ASSERT_EQ(queue.EmplaceLockRequest(LockMode::WRITE, 1), queue.null_group_id);
+  ASSERT_EQ(queue.EmplaceLockRequest(1, LockMode::WRITE), queue.null_group_id);
 
   // Emplace request in agreement with the last group
-  ASSERT_EQ(queue.EmplaceLockRequest(LockMode::READ, 2), result);
+  ASSERT_EQ(queue.EmplaceLockRequest(2, LockMode::READ), result);
 
   // Emplace request in contention with the last group
-  ASSERT_EQ(queue.EmplaceLockRequest(LockMode::WRITE, 3), result + 1);
+  ASSERT_EQ(queue.EmplaceLockRequest(3, LockMode::WRITE), result + 1);
 }
 
 TEST_F(LockRequestQueueTestFixture, TestEmplaceGetRequest) {
   // Emplace request into an empty queue
-  queue.EmplaceLockRequest(LockMode::READ, 1);
+  queue.EmplaceLockRequest(1, LockMode::READ);
 
   auto& request = queue.GetLockRequest(1);
   ASSERT_EQ(request.GetMode(), LockMode::READ);
@@ -64,9 +64,9 @@ TEST_F(LockRequestQueueTestFixture, TestEmplaceGetRequest) {
 
 TEST_F(LockRequestQueueTestFixture, TestEmplaceRequestGetGroupId) {
   // Emplace request into an empty queue
-  auto result_1 = queue.EmplaceLockRequest(LockMode::READ, 1);
+  auto result_1 = queue.EmplaceLockRequest(1, LockMode::READ);
   // Emplace request in agreement with the last group
-  auto result_2 = queue.EmplaceLockRequest(LockMode::READ, 2);
+  auto result_2 = queue.EmplaceLockRequest(2, LockMode::READ);
 
   ASSERT_EQ(result_1, queue.GetGroupId(1));
   ASSERT_EQ(result_2, queue.GetGroupId(2));
@@ -74,7 +74,7 @@ TEST_F(LockRequestQueueTestFixture, TestEmplaceRequestGetGroupId) {
 
 TEST_F(LockRequestQueueTestFixture, TestEmplaceRemoveGetRequest) {
   // Emplace request into an empty queue
-  auto result = queue.EmplaceLockRequest(LockMode::READ, 1);
+  auto result = queue.EmplaceLockRequest(1, LockMode::READ);
 
   ASSERT_EQ(result, queue.GetGroupId(1));
   queue.RemoveLockRequest(1);

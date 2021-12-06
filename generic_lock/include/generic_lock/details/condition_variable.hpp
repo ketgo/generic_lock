@@ -21,9 +21,9 @@ namespace gl {
 namespace details {
 
 /**
- * @brief Wrapper around the `std::condition_variable` class. Along with
- * exposing all the public API of `std::condition_variable`, the wrapper class
- * also exposes additional APIs.
+ * Wrapper around the `std::condition_variable` class. Along with exposing all
+ * the public API of `std::condition_variable`, the wrapper class also exposes
+ * additional APIs.
  *
  */
 class ConditionVariable {
@@ -32,18 +32,18 @@ class ConditionVariable {
   typedef std::condition_variable::native_handle_type native_handle_type;
 
   /**
-   * @brief Construct a new ConditionVariable object.
+   * Construct a new ConditionVariable object.
    *
    */
   ConditionVariable() = default;
 
   /**
-   * @brief Wait causes the current thread to block until the condition variable
-   * is notified or a spurious wakeup occurs. The method atomically unlocks
-   * `lock`, blocks the current executing thread, and adds it to the list of
-   * waiting threads. The thread will be unblocked when `NotifyAll()` or
-   * `NotifyOne()` is executed. It may also be unblocked spuriously. When
-   * unblocked, regardless of the reason, lock is reacquired.
+   * Wait causes the current thread to block until the condition variable is
+   * notified or a spurious wakeup occurs. The method atomically unlocks `lock`,
+   * blocks the current executing thread, and adds it to the list of waiting
+   * threads. The thread will be unblocked when `NotifyAll()` or `NotifyOne()`
+   * is executed. It may also be unblocked spuriously. When unblocked,
+   * regardless of the reason, lock is reacquired.
    *
    * @param lock Reference to the unique lock which can be locked by the current
    * thread.
@@ -51,14 +51,14 @@ class ConditionVariable {
   void Wait(std::unique_lock<std::mutex>& lock) { _cv.wait(lock); }
 
   /**
-   * @brief Wait causes the current thread to block until the condition variable
-   * is notified or a spurious wakeup occurs. The method atomically unlocks
-   * `lock`, blocks the current executing thread, and adds it to the list of
-   * waiting threads. The thread will be unblocked when `NotifyAll()` or
-   * `NotifyOne()` is executed. It may also be unblocked spuriously. When
-   * unblocked, regardless of the reason, lock is reacquired and the predicate
-   * is checked. Until the predicate is satisfied (`!stop_waiting() == true`),
-   * the thread waits again.
+   * Wait causes the current thread to block until the condition variable is
+   * notified or a spurious wakeup occurs. The method atomically unlocks `lock`,
+   * blocks the current executing thread, and adds it to the list of waiting
+   * threads. The thread will be unblocked when `NotifyAll()` or `NotifyOne()`
+   * is executed. It may also be unblocked spuriously. When unblocked,
+   * regardless of the reason, lock is reacquired and the predicate is checked.
+   * Until the predicate is satisfied (`!stop_waiting() == true`), the thread
+   * waits again.
    *
    * @tparam Predicate The predicate type.
    * @param lock Reference to the unique lock which can be locked by the current
@@ -73,8 +73,8 @@ class ConditionVariable {
   }
 
   /**
-   * @brief Wait causes the current thread to block until the condition variable
-   * is notified or a spurious wakeup occurs. While blocking it periodically
+   * Wait causes the current thread to block until the condition variable is
+   * notified or a spurious wakeup occurs. While blocking it periodically
    * unblocks the thread and executes a specified callback. The method
    * atomically unlocks `lock`, blocks the current executing thread, and adds it
    * to the list of waiting threads. The thread will be unblocked when
@@ -105,8 +105,8 @@ class ConditionVariable {
   }
 
   /**
-   * @brief Wait causes the current thread to block until the condition variable
-   * is notified or a spurious wakeup occurs. While blocking it periodically
+   * Wait causes the current thread to block until the condition variable is
+   * notified or a spurious wakeup occurs. While blocking it periodically
    * unblocks the thread and executes a specified callback. The method
    * atomically unlocks `lock`, blocks the current executing thread, and adds it
    * to the list of waiting threads. The thread will be unblocked when
@@ -144,13 +144,13 @@ class ConditionVariable {
   }
 
   /**
-   * @brief WaitFor causes the current thread to block until the condition
-   * variable is notified, a specified duration passes, or a spurious wakeup
-   * occurs. The method atomically releases `lock`, blocks the current executing
-   * thread, and adds it to the list of waiting threads. The thread will be
-   * unblocked when `NotifyAll()` or `NotifyOne()` is executed, or when the
-   * relative timeout `duration` expires. It may also be unblocked spuriously.
-   * When unblocked, regardless of the reason, lock is reacquired.
+   * WaitFor causes the current thread to block until the condition variable is
+   * notified, a specified duration passes, or a spurious wakeup occurs. The
+   * method atomically releases `lock`, blocks the current executing thread, and
+   * adds it to the list of waiting threads. The thread will be unblocked when
+   * `NotifyAll()` or `NotifyOne()` is executed, or when the relative timeout
+   * `duration` expires. It may also be unblocked spuriously. When unblocked,
+   * regardless of the reason, lock is reacquired.
    *
    * @tparam Rep An arithmetic type representing the number of ticks.
    * @tparam Period A ratio representing tick period.
@@ -170,14 +170,14 @@ class ConditionVariable {
   }
 
   /**
-   * @brief WaitFor causes the current thread to block until the condition
-   * variable is notified, a specified duration passes, or a spurious wakeup
-   * occurs. The method atomically releases `lock`, blocks the current executing
-   * thread, and adds it to the list of waiting threads. The thread will be
-   * unblocked when `NotifyAll()` or `NotifyOne()` is executed, or when the
-   * relative timeout `duration` expires. It may also be unblocked spuriously.
-   * When unblocked, regardless of the reason, lock is reacquired and the
-   * predicate is checked. Until the predicate is satisfied (`!stop_waiting()`
+   * WaitFor causes the current thread to block until the condition variable is
+   * notified, a specified duration passes, or a spurious wakeup occurs. The
+   * method atomically releases `lock`, blocks the current executing thread, and
+   * adds it to the list of waiting threads. The thread will be unblocked when
+   * `NotifyAll()` or `NotifyOne()` is executed, or when the relative timeout
+   * `duration` expires. It may also be unblocked spuriously. When unblocked,
+   * regardless of the reason, lock is reacquired and the predicate is checked.
+   * Until the predicate is satisfied (`!stop_waiting()`
    * == true), the thread waits again.
    *
    * @tparam Rep An arithmetic type representing the number of ticks.
@@ -203,23 +203,23 @@ class ConditionVariable {
   }
 
   /**
-   * @brief Unblocks all threads currently waiting on the condition variable.
+   * Unblocks all threads currently waiting on the condition variable.
    *
    */
   void NotifyAll() noexcept { _cv.notify_all(); }
 
   /**
-   * @brief If any threads are waiting on the condition variable, calling
-   * notify_one unblocks one of the waiting threads.
+   * If any threads are waiting on the condition variable, calling notify_one
+   * unblocks one of the waiting threads.
    *
    */
   void NotifyOne() noexcept { _cv.notify_one(); }
 
   /**
-   * @brief Accesses the native handle of the condition variable. The meaning
-   * and the type of the result of this function is implementation-defined. On a
-   * POSIX system, this may be a value of type `pthread_cond_t*`. On a Windows
-   * system, this may be a `PCONDITION_VARIABLE`.
+   * Accesses the native handle of the condition variable. The meaning and the
+   * type of the result of this function is implementation-defined. On a POSIX
+   * system, this may be a value of type `pthread_cond_t*`. On a Windows system,
+   * this may be a `PCONDITION_VARIABLE`.
    *
    * @returns The native handle of this condition variable.
    */

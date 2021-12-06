@@ -19,60 +19,60 @@ namespace gl {
 namespace details {
 
 /**
- * @brief Lock request contains the type of lock mode requested and if the
- * request is denied due to deadlock discorvery.
+ * Lock request contains the type of lock mode requested and if the request is
+ * denied due to deadlock discorvery.
  *
- * @tparam LockModeType The lock mode type.
+ * @tparam LockMode Lock mode type.
  */
-template <class LockModeType>
+template <class LockMode>
 class LockRequest {
  public:
   /**
-   * @brief Construct a new Lock Request object.
+   * Construct a new Lock Request object.
    *
    * @param mode Constant reference to the lock mode.
    */
-  LockRequest(const LockModeType& mode) : _mode(mode), _denied(false) {}
+  LockRequest(const LockMode& mode) : mode_(mode), denied_(false) {}
 
   /**
-   * @brief Get the requested lock mode.
+   * Get the requested lock mode.
    *
    * @returns Constant reference to the lock mode.
    */
-  const LockModeType& GetMode() const { return _mode; }
+  const LockMode& GetMode() const { return mode_; }
 
   /**
-   * @brief set the requested lock mode.
+   * set the requested lock mode.
    *
    * @returns Constant reference to the lock mode.
    */
-  void SetMode(const LockModeType& mode) { _mode = mode; }
+  void SetMode(const LockMode& mode) { mode_ = mode; }
 
   /**
-   * @brief Set the lock request as denied.
+   * Set the lock request as denied.
    *
    */
-  void Deny() { _denied = true; }
+  void Deny() { denied_ = true; }
 
   /**
-   * @brief Set the lock request as approved.
+   * Set the lock request as approved.
    *
    */
-  void Approve() { _denied = false; }
+  void Approve() { denied_ = false; }
 
   /**
-   * @brief Check if the lock request is denied.
+   * Check if the lock request is denied.
    *
    * @returns `true` if denied else `false`.
    */
-  bool IsDenied() const { return _denied; }
+  bool IsDenied() const { return denied_; }
 
  private:
   // The lock mode requested.
-  LockModeType _mode;
+  LockMode mode_;
   // Flag indicating if the request should be denied. This is set to true if
   // the request causes a deadlock.
-  bool _denied;
+  bool denied_;
 };
 
 }  // namespace details

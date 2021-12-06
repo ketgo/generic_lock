@@ -21,10 +21,10 @@ namespace gl {
 namespace details {
 
 /**
- * @brief Contention matrix is a 2-D matrix containing either `true` or `false`
- * as values. Each value represents contention between two lock modes. For
- * example, consider lock modes READ and WRITE for a read-write lock. The
- * contention matrix for the lock will be:
+ * Contention matrix is a 2-D matrix containing either `true` or `false` as
+ * values. Each value represents contention between two lock modes. For example,
+ * consider lock modes READ and WRITE for a read-write lock. The contention
+ * matrix for the lock will be:
  *
  * @example
  * enum class LockMode { READ, WRITE=1 };

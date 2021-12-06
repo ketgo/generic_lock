@@ -25,7 +25,7 @@ using namespace gl;
 
 TEST(SelectionPolicyTestFixture, SelectMaxPolicy) {
   SelectMaxPolicy<size_t> policy;
-  std::set<size_t> thread_ids = {1, 5, 2, 15, 7, 3, 11};
+  std::set<size_t> transaction_ids = {1, 5, 2, 15, 7, 3, 11};
 
-  ASSERT_EQ(policy(thread_ids), 15);
+  ASSERT_EQ(policy(transaction_ids), 15);
 }
