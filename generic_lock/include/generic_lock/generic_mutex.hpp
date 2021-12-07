@@ -23,6 +23,8 @@
 #include <mutex>
 #include <unordered_map>
 
+// TODO: C++11 complient implementation
+
 namespace gl {
 
 /**
@@ -43,9 +45,6 @@ namespace gl {
  */
 template <size_t modes_count>
 using ContentionMatrix = details::ContentionMatrix<modes_count>;
-
-// TODO: Find better way of passing the lock modes and contention matrix to the
-// generic lock.
 
 /**
  * @brief The generic mutex class is a synchronization primitive that can be
@@ -97,8 +96,7 @@ class GenericMutex {
   struct LockTableEntry {
     // Granted group identifier starts with value of `1` since the first
     // group in the request queue has an identifier of `1`.
-    LockTableEntry(const ContentionMatrix<modes_count>& contention_matrix)
-        : queue(contention_matrix), cv(), granted_group_id(1) {}
+    LockTableEntry() : queue(), cv(), granted_group_id(1) {}
 
     LockRequestQueue queue;
     details::ConditionVariable cv;
@@ -108,6 +106,10 @@ class GenericMutex {
   // Table containing lock requests for different records. Each record is
   // associated with its own request queue via its unique key.
   typedef std::unordered_map<RecordId, LockTableEntry> LockTable;
+
+  // Maping identifier of transactions waiting for thier lock request to be
+  // granted to the identifier of the record for which the lock is desired.
+  typedef std::unordered_map<TransactionId, RecordId> WaitMap;
 
   // Lock type.
   typedef std::unique_lock<std::mutex> UniqueLock;
@@ -146,10 +148,11 @@ class GenericMutex {
     UniqueLock lock(latch_);
 
     // Creates a lock table entry if it does not exist already
-    auto& entry = table_.emplace(record_id, contention_matrix_).first->second;
+    auto& entry = table_[record_id];
 
     // Emplace request in the queue of the record identifier
-    auto& group_id = entry.queue.EmplaceLockRequest(transaction_id, mode);
+    auto& group_id = entry.queue.EmplaceLockRequest(transaction_id, mode,
+                                                    contention_matrix_);
     // If the request could not be emplaced then return
     if (group_id == LockRequestQueue::null_group_id) {
       return false;
@@ -166,11 +169,13 @@ class GenericMutex {
     // requests to be granted. We thus have to update the dependency graph and
     // put the transaction into wait mode.
     InsertDependency(entry.queue, transaction_id);
+    wait_map_[transaction_id] = record_id;
     entry.cv.Wait(
         lock, timeout_,
         std::bind(&GenericMutex::DeadlockCheck, this, record_id,
                   transaction_id),
         std::bind(&GenericMutex::StopWaiting, this, record_id, transaction_id));
+    wait_map_.erase(transaction_id);
 
     // Check if the request was denied. Happens on deadlock discovery.
     if (entry.queue.GetLockRequest(transaction_id).IsDenied()) {
@@ -227,7 +232,7 @@ class GenericMutex {
           if (front_group_id != entry.granted_group_id) {
             entry.granted_group_id = front_group_id;
 
-            // Reduces mutex contention for improved performance.
+            // NOTE: Reduces mutex contention for improved performance.
             lock.unlock();
 
             // TODO: [OPTIMIZATION] Insted of notifying all waiting threads,
@@ -373,38 +378,16 @@ class GenericMutex {
       // Select transaction identifer to deny request for deadlock recovery
       auto _thread_id = policy(cycle);
 
-      // Deny the waiting request of `_thread_id` identifier. Note that even
-      // though multiple granted requests from the transaction can exist in the
-      // lock table, there can only be a single waiting request. We need to find
-      // and deny that request here.
+      // TODO: [OPTIMIZATION] Design an approach to just wakeup the
+      // transaction associated with the denied request. This avoids
+      // unnecessary wakeup of other threads.
 
-      // TODO: [OPTIMIZATION] Create a sperate class called LockTable and expose
-      // an API method `GetWaitingRequest(const TransactionId& transaction_id)`
-      // which implements O(1) request retrival.
-
-      // Iterate through each entry in the lock table
-      for (auto& element : table_) {
-        auto& entry = element.second;
-        // Check if the entry contains the waiting lock request for the above
-        // transaction identifier.
-        if (entry.queue.LockRequestExists(_thread_id)) {
-          if (entry.queue.GetGroupId(_thread_id) != entry.granted_group_id) {
-            // Deny the lock request and notify all the waiting threads in the
-            // queue
-
-            // TODO: [OPTIMIZATION] Design an approach to just wakeup the
-            // transaction associated with the denied request. This avoids
-            // unnecessary wakeup of other threads.
-
-            entry.queue.GetLockRequest(_thread_id).Deny();
-            entry.cv.NotifyAll();
-
-            // Since only a single waiting request from the transaction can ever
-            // exist in the lock table, we can now simply terminate the loop.
-            break;
-          }
-        }
-      }
+      // Deny the waiting request of `_thread_id` identifier and notify all the
+      // waiting threads in the queue.
+      auto& _record_id = wait_map_.at(_thread_id);
+      auto& entry = table_.at(_record_id);
+      entry.queue.GetLockRequest(_thread_id).Deny();
+      entry.cv.NotifyAll();
     }
   }
 
@@ -416,6 +399,8 @@ class GenericMutex {
   std::mutex latch_;
   // Lock table recording state of the lock.
   LockTable table_;
+  // Maps waiting transactions to record identifiers
+  WaitMap wait_map_;
   // Dependency graph between different lock requests.
   details::DependencyGraph<TransactionId> dependency_graph_;
 };

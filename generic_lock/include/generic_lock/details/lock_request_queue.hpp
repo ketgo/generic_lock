@@ -60,14 +60,6 @@ class LockRequestQueue {
   typedef typename RequestGroupListType::ConstIterator ConstIterator;
 
   /**
-   * Construct a new Lock Request Queue object.
-   *
-   * @param contention_matrix Constant reference to the contention matrix.
-   */
-  LockRequestQueue(const ContentionMatrix<modes_count>& contention_matrix)
-      : contention_matrix_(contention_matrix), group_id_map_(), groups_() {}
-
-  /**
    * Emplace a lock request into the queue. The request is checked for agreement
    * with the last request group in the queue. If there is agreement, the
    * request is added to the group, otherwise a new group is created. The method
@@ -78,15 +70,18 @@ class LockRequestQueue {
    *
    * @param transaction_id Constant reference to the transaction identifier.
    * @param mode Constant reference to the requested lock mode.
+   * @param contention_matrix Constant reference to the contention matrix.
    * @returns Constant reference to the identifier of the group to which the
    * emplaced request belongs.
    */
   const LockRequestGroupId& EmplaceLockRequest(
-      const TransactionId& transaction_id, const LockMode& mode) {
+      const TransactionId& transaction_id, const LockMode& mode,
+      const ContentionMatrix<modes_count>& contention_matrix) {
     // If no group exist in the queue then create a new group and emplace
     // the request in it
     if (groups_.Empty()) {
-      return EmplaceNewRequestGroup(null_group_id + 1, transaction_id, mode);
+      return EmplaceNewRequestGroup(null_group_id + 1, transaction_id, mode,
+                                    contention_matrix);
     }
 
     // Check that a prior request by the same transaction does not exist
@@ -100,14 +95,15 @@ class LockRequestQueue {
     // group
     auto& last_group = groups_.Back();
     if (last_group.value.EmplaceLockRequest(transaction_id, mode,
-                                            contention_matrix_)) {
+                                            contention_matrix)) {
       group_id_map_[transaction_id] = last_group.key;
       return last_group.key;
     }
 
     // Could not emplace into the last group so create a new group and emplace
     // the request inside it
-    return EmplaceNewRequestGroup(last_group.key + 1, transaction_id, mode);
+    return EmplaceNewRequestGroup(last_group.key + 1, transaction_id, mode,
+                                  contention_matrix);
   }
 
   /**
@@ -223,18 +219,20 @@ class LockRequestQueue {
    * @param group_id Constant reference to the new group identifier.
    * @param transaction_id Constant reference to the transaction identifier.
    * @param mode Constant reference to the lock mode.
+   * @param contention_matrix Constant reference to the contention matrix.
    * @returns Constant reference to the newly created group identifier.
    */
   const LockRequestGroupId& EmplaceNewRequestGroup(
       const LockRequestGroupId& group_id, const TransactionId& transaction_id,
-      const LockMode& mode) {
+      const LockMode& mode,
+      const ContentionMatrix<modes_count>& contention_matrix) {
     // Creates an empty request group
     auto result = groups_.EmplaceBack(group_id);
     // Assert that we were able to create the empty group.
     assert(result.second);
     // Emplace the request into the group
     result.first->value.EmplaceLockRequest(transaction_id, mode,
-                                           contention_matrix_);
+                                           contention_matrix);
     // Record the mapping between the transaction and the new group identifier
     group_id_map_[transaction_id] = result.first->key;
     // Return the new group identifier
@@ -246,8 +244,6 @@ class LockRequestQueue {
   // Map between the transaction identifiers and the associated lock request
   // group identifier.
   std::unordered_map<TransactionId, LockRequestGroupId> group_id_map_;
-  // Contention matrix for creating lock request groups
-  const ContentionMatrix<modes_count>& contention_matrix_;
 };
 
 }  // namespace details

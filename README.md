@@ -2,6 +2,8 @@
 
 A Generic lock is a synchronization primitive for concurrent access to shared data by multiple threads.
 
+Supported C++ Version: 17
+
 ## Build
 
 CMake can be used to build the project. Run the following command to trigger the build:
