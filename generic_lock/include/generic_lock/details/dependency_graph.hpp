@@ -21,43 +21,42 @@
 namespace gl {
 namespace details {
 
-// TODO: Use shared pointer to thread identifier for creating dependency graphs.
-// This enables support of non-trival thread identifier types. It further has an
-// advantage of treating null pointer as a null thread identifier.
-
 /**
- * @brief Directed graph used to track depedency between different concurrently
- * running theads. A thread `A` is dependent on thread `B` if `A` is waiting
- * to access a shared data which is currently locked by `B`.
+ * Directed graph used to track depedency between different concurrently running
+ * transactions. A transaction `A` is dependent on transaction `B` if `A` is
+ * waiting to access a shared data which is currently locked by `B`.
  *
- * @tparam T Thread identifier type.
+ * @tparam TransactionId Transaction identifier type.
+ * @tparam Hash The type of hash function object for thread identifier.
  */
-template <class T>
+template <class TransactionId, class Hash = std::hash<TransactionId>>
 class DependencyGraph {
  public:
   /**
-   * @brief Construct a new Dependency Graph object.
+   * Construct a new Dependency Graph object.
    *
    */
   DependencyGraph() = default;
 
   /**
-   * @brief Add dependency from thread with identifier `id_a` to that with
-   * identifier `id_b`.
+   * Add dependency from thread with identifier `id_a` to that with identifier
+   * `id_b`.
    *
    * @param id_a Constant reference to the identifier of the dependent thread.
    * @param id_b Constant reference to the identifier of the depended thread.
    */
-  void Add(const T& id_a, const T& id_b) { _dependency_map[id_a][id_b] = true; }
+  void Add(const TransactionId& id_a, const TransactionId& id_b) {
+    _dependency_map[id_a][id_b] = true;
+  }
 
   /**
-   * @brief Remove dependency from thread with identifier `id_a` to that with
+   * Remove dependency from thread with identifier `id_a` to that with
    * identifier `id_b`.
    *
    * @param id_a Constant reference to the identifier of the dependent thread.
    * @param id_b Constant reference to the identifier of the depended thread.
    */
-  void Remove(const T& id_a, const T& id_b) {
+  void Remove(const TransactionId& id_a, const TransactionId& id_b) {
     // Removes dependency edge only if it exists
     auto it = _dependency_map.find(id_a);
     if (it != _dependency_map.end()) {
@@ -70,11 +69,11 @@ class DependencyGraph {
   }
 
   /**
-   * @brief Remove all dependencies for thread with the given identifier.
+   * Remove all dependencies for thread with the given identifier.
    *
    * @param id Constant reference to the thread identifier.
    */
-  void Remove(const T& id) {
+  void Remove(const TransactionId& id) {
     // Erase all dependency edges for the given transaction identifier
     for (auto& element : _dependency_map) {
       element.second.erase(id);
@@ -83,14 +82,14 @@ class DependencyGraph {
   }
 
   /**
-   * @brief Check if a thread with identifier `id_a` is depenedent on a thread
-   * with identifier `id_b`.
+   * Check if a thread with identifier `id_a` is depenedent on a thread with
+   * identifier `id_b`.
    *
    * @param id_a Constant reference to the identifier of the dependent thread.
    * @param id_b Constant reference to the identifier of the depended thread.
    * @returns `true` if the thread is dependent else `false`.
    */
-  bool IsDependent(const T& id_a, const T& id_b) {
+  bool IsDependent(const TransactionId& id_a, const TransactionId& id_b) {
     auto it = _dependency_map.find(id_a);
     if (it != _dependency_map.end()) {
       return it->second.find(id_b) != it->second.end();
@@ -99,18 +98,18 @@ class DependencyGraph {
   }
 
   /**
-   * @brief Detects a cycle in the dependency graph starting lookup from the
-   * given identifier. The method returns the set of identifiers forming the
-   * cycle. If the set is empty then no cycle was observed.
+   * Detects a cycle in the dependency graph starting lookup from the given
+   * identifier. The method returns the set of identifiers forming the cycle. If
+   * the set is empty then no cycle was observed.
    *
    * @param id Constant reference to the thread identifier from where to start
    * lookup. This identifier should exist in the dependency graph.
    * @returns Set of thread identifiers forming a cycle in the dependency graph.
    */
-  std::set<T> DetectCycle(const T& id) const {
-    std::unordered_map<T, T> parents;
-    std::unordered_map<T, bool> visited;
-    std::set<T> rvalue;
+  std::set<TransactionId> DetectCycle(const TransactionId& id) const {
+    std::unordered_map<TransactionId, TransactionId> parents;
+    std::unordered_map<TransactionId, bool> visited;
+    std::set<TransactionId> rvalue;
 
     auto result = DetectCycle(id, parents, visited);
     if (result.second) {
@@ -127,8 +126,8 @@ class DependencyGraph {
 
  private:
   /**
-   * @brief The method starts traversing the dependency graph using breath first
-   * search algorithm through recursion. It marks each node as either "visited",
+   * The method starts traversing the dependency graph using breath first search
+   * algorithm through recursion. It marks each node as either "visited",
    * "visiting", or "not-visited". A cycle is observed when we reach a
    * "visiting" node again during our transversal. The path taken during the
    * transversal can be obtained from the `partents` map, storing the parent
@@ -141,9 +140,10 @@ class DependencyGraph {
    * @returns A pair containing a flag indicating if a cycle was observed and
    * the identifier on which the cycle was observed or null.
    */
-  std::pair<T, bool> DetectCycle(const T& node,
-                                 std::unordered_map<T, T>& parents,
-                                 std::unordered_map<T, bool>& visited) const {
+  std::pair<TransactionId, bool> DetectCycle(
+      const TransactionId& node,
+      std::unordered_map<TransactionId, TransactionId>& parents,
+      std::unordered_map<TransactionId, bool>& visited) const {
     // Current node is being observed for the first time so mark it as
     // in the process of being visited.
     visited[node] = false;
@@ -168,8 +168,8 @@ class DependencyGraph {
   }
 
   /**
-   * @brief The method traverses the dependency graph using breath first
-   * search algorithm through recursion. It marks each node as either "visited",
+   * The method traverses the dependency graph using breath first search
+   * algorithm through recursion. It marks each node as either "visited",
    * "visiting", or "not-visited". A cycle is observed when we reach a
    * "visiting" node again during our transversal. The path taken during the
    * transversal can be obtained from the `partents` map, storing the parent
@@ -184,9 +184,10 @@ class DependencyGraph {
    * @returns A pair containing a flag indicating if a cycle was observed and
    * the identifier on which the cycle was observed or null.
    */
-  std::pair<T, bool> DetectCycle(const T& node, const T& parent,
-                                 std::unordered_map<T, T>& parents,
-                                 std::unordered_map<T, bool>& visited) const {
+  std::pair<TransactionId, bool> DetectCycle(
+      const TransactionId& node, const TransactionId& parent,
+      std::unordered_map<TransactionId, TransactionId>& parents,
+      std::unordered_map<TransactionId, bool>& visited) const {
     // Set the parent node of the current node.
     parents[node] = parent;
 
@@ -225,7 +226,9 @@ class DependencyGraph {
   }
 
   // Dependency map
-  std::unordered_map<T, std::unordered_map<T, bool>> _dependency_map;
+  std::unordered_map<TransactionId, std::unordered_map<TransactionId, bool>,
+                     Hash>
+      _dependency_map;
 };
 
 }  // namespace details

@@ -29,6 +29,7 @@
 template <class T>
 class EventLog {
   typedef std::list<T> queue_t;
+  typedef std::lock_guard<std::mutex> lock_guard;
 
  public:
   typedef typename queue_t::iterator iterator_t;
@@ -42,7 +43,7 @@ class EventLog {
    */
   template <class... Args>
   void emplace(Args&&... args) {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     _list.emplace_back(std::forward<Args>(args)...);
   }
 
@@ -52,7 +53,7 @@ class EventLog {
    * @param event Constant reference to the event.
    */
   void push(const T& event) {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     _list.push_back(event);
   }
 
@@ -61,7 +62,7 @@ class EventLog {
    *
    */
   void pop() {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     _list.pop_front();
   }
 
@@ -71,7 +72,7 @@ class EventLog {
    * @returns The value of the latest event.
    */
   T front() {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     return _list.front();
   }
 
@@ -81,7 +82,7 @@ class EventLog {
    * @returns The constant value of the latest event.
    */
   const T front() const {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     return _list.front();
   }
 
@@ -91,7 +92,7 @@ class EventLog {
    * @returns The value of the oldest event.
    */
   T back() {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     return _list.back();
   }
 
@@ -101,7 +102,7 @@ class EventLog {
    * @returns The constant value of the oldest event.
    */
   const T back() const {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     return _list.back();
   }
 
@@ -111,7 +112,7 @@ class EventLog {
    * @returns Iterator pointing to the begining of the log.
    */
   iterator_t begin() {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     return _list.begin();
   }
 
@@ -121,7 +122,7 @@ class EventLog {
    * @returns Constant iterator pointing to the begining of the log.
    */
   const_iterator_t begin() const {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     return _list.begin();
   }
 
@@ -131,7 +132,7 @@ class EventLog {
    * @returns Iterator pointing to to one past the last event in the log.
    */
   iterator_t end() {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     return _list.end();
   }
 
@@ -143,7 +144,7 @@ class EventLog {
    * log.
    */
   const_iterator_t end() const {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     return _list.end();
   }
 
@@ -153,7 +154,7 @@ class EventLog {
    * @returns The number of events in the log.
    */
   size_t size() const {
-    std::lock_guard guard(_mutex);
+    lock_guard guard(_mutex);
     return _list.size();
   }
 

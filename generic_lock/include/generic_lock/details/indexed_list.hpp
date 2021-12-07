@@ -22,10 +22,10 @@ namespace gl {
 namespace details {
 
 /**
- * @brief An indexed list is a container containing list of values indexed on a
- * key. Thus each value can be accessed in O(1) using its key. The values are
- * stored in the order they are inserted, unlike `std::map` where they are
- * ordered by key.
+ * An indexed list is a container containing list of values indexed on a key.
+ * Thus each value can be accessed in O(1) using its key. The values are stored
+ * in the order they are inserted, unlike `std::map` where they are ordered by
+ * key.
  *
  * @tparam KeyType The type of key.
  * @tparam ValueType The type of value.
@@ -48,15 +48,15 @@ class IndexedList {
   typedef std::unordered_map<KeyType, Iterator> Index;
 
   /**
-   * @brief Construct a new Indexed List object
+   * Construct a new Indexed List object
    *
    */
   IndexedList() = default;
 
   /**
-   * @brief Inserts a new element at the end of the list, right after its
-   * current last element. This new element is constructed in place using args
-   * as the arguments for its construction.
+   * Inserts a new element at the end of the list, right after its current last
+   * element. This new element is constructed in place using args as the
+   * arguments for its construction.
    *
    * @tparam Args The type of arguments forwarded to construct the new element.
    * @param key Index key of the element.
@@ -78,9 +78,9 @@ class IndexedList {
   }
 
   /**
-   * @brief Get the value for the given key. This is an O(1) operation. Note
-   * that an `std::out_of_range` exception is thrown if the given key-value pair
-   * does not exist in the container.
+   * Get the value for the given key. This is an O(1) operation. Note that an
+   * `std::out_of_range` exception is thrown if the given key-value pair does
+   * not exist in the container.
    *
    * @param key Constant reference to the key.
    * @returns Reference to the associated value.
@@ -88,9 +88,9 @@ class IndexedList {
   ValueType& At(const KeyType& key) { return _index.at(key)->value; }
 
   /**
-   * @brief Get the value for the given key. This is an O(1) operation. Note
-   * that an `std::out_of_range` exception is thrown if the given key-value pair
-   * does not exist in the container.
+   * Get the value for the given key. This is an O(1) operation. Note that an
+   * `std::out_of_range` exception is thrown if the given key-value pair does
+   * not exist in the container.
    *
    * @param key Constant reference to the key.
    * @returns Constant reference to the associated value.
@@ -100,35 +100,35 @@ class IndexedList {
   }
 
   /**
-   * @brief Get the key-value pair at the begining of the list.
+   * Get the key-value pair at the begining of the list.
    *
    * @returns Reference to the front node.
    */
   Node& Front() { return _list.front(); }
 
   /**
-   * @brief Get the key-value pair at the begining of the list.
+   * Get the key-value pair at the begining of the list.
    *
    * @returns Constant reference to the front node.
    */
   const Node& Front() const { return _list.front(); }
 
   /**
-   * @brief Get the key-value pair at the end of the list.
+   * Get the key-value pair at the end of the list.
    *
    * @returns Reference to the end node.
    */
   Node& Back() { return _list.back(); }
 
   /**
-   * @brief Get the key-value pair at the end of the list.
+   * Get the key-value pair at the end of the list.
    *
    * @returns Constant reference to the end node.
    */
   const Node& Back() const { return _list.back(); }
 
   /**
-   * @brief Find the value associated with the given key. This is an O(1)
+   * Find the value associated with the given key. This is an O(1)
    * operation.
    *
    * @param key Constant reference to the key.
@@ -141,8 +141,7 @@ class IndexedList {
   }
 
   /**
-   * @brief Find the value associated with the given key. This is an O(1)
-   * operation.
+   * Find the value associated with the given key. This is an O(1) operation.
    *
    * @param key Constant reference to the key.
    * @returns Constant iterator to the node containing the requested key-value
@@ -155,7 +154,7 @@ class IndexedList {
   }
 
   /**
-   * @brief Erase the key-value pair for the given key.
+   * Erase the key-value pair for the given key.
    *
    * @param key Constant reference to the key.
    * @returns Iterator to the node right after the erased node.
@@ -167,7 +166,7 @@ class IndexedList {
   }
 
   /**
-   * @brief Erase the key-value pair at the given iterator position.
+   * Erase the key-value pair at the given iterator position.
    *
    * @param pos Iterator pointing to the node to erase.
    * @returns Iterator to the node right after the erased node.
@@ -178,7 +177,7 @@ class IndexedList {
   }
 
   /**
-   * @brief Erase the key-value pair at the given iterator position.
+   * Erase the key-value pair at the given iterator position.
    *
    * @param pos Constant iterator pointing to the node to erase.
    * @returns Iterator to the node right after the erased node.
@@ -189,42 +188,42 @@ class IndexedList {
   }
 
   /**
-   * @brief Get an iterator pointing to the begining of the container.
+   * Get an iterator pointing to the begining of the container.
    *
    * @returns Iterator pointing to the begining of the container.
    */
   Iterator Begin() { return _list.begin(); }
 
   /**
-   * @brief Get a constant iterator pointing to the begining of the container.
+   * Get a constant iterator pointing to the begining of the container.
    *
    * @return Constant iterator pointing to the begining of the container.
    */
   ConstIterator Begin() const { return _list.begin(); }
 
   /**
-   * @brief Get an iterator pointing to the end of the container.
+   * Get an iterator pointing to the end of the container.
    *
    * @returns Iterator pointing to the end of the container.
    */
   Iterator End() { return _list.end(); }
 
   /**
-   * @brief Get a constant iterator pointing to the end of the container.
+   * Get a constant iterator pointing to the end of the container.
    *
    * @returns Constant iterator pointing to the end of the container.
    */
   ConstIterator End() const { return _list.end(); }
 
   /**
-   * @brief Get the number of elements in the container.
+   * Get the number of elements in the container.
    *
    * @returns Number of elements in the container.
    */
   size_t Size() const { return _list.size(); }
 
   /**
-   * @brief Check if the container is empty.
+   * Check if the container is empty.
    *
    * @returns `true` if empty else `false`.
    */

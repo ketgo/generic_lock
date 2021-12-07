@@ -25,12 +25,12 @@ using namespace gl::details;
 
 class LockRequestGroupTestFixture : public ::testing::Test {
  protected:
-  typedef size_t ThreadId;
+  typedef size_t TransactionId;
   enum class LockMode { READ, WRITE };
   const ContentionMatrix<2> contention_matrix = {
       {{{false, true}}, {{true, true}}}};
 
-  LockRequestGroup<LockMode, 2, ThreadId> group;
+  LockRequestGroup<TransactionId, LockMode, 2> group;
 
   void SetUp() override {}
   void TearDown() override {}
@@ -38,16 +38,16 @@ class LockRequestGroupTestFixture : public ::testing::Test {
 
 TEST_F(LockRequestGroupTestFixture, EmplaceGetRequest) {
   // Emplace request into an empty group
-  ASSERT_TRUE(group.EmplaceLockRequest(LockMode::READ, 1, contention_matrix));
+  ASSERT_TRUE(group.EmplaceLockRequest(1, LockMode::READ, contention_matrix));
 
   // Another request from the same thread
-  ASSERT_FALSE(group.EmplaceLockRequest(LockMode::READ, 1, contention_matrix));
+  ASSERT_FALSE(group.EmplaceLockRequest(1, LockMode::READ, contention_matrix));
 
   // Emplace request in agreement with the last group
-  ASSERT_TRUE(group.EmplaceLockRequest(LockMode::READ, 2, contention_matrix));
+  ASSERT_TRUE(group.EmplaceLockRequest(2, LockMode::READ, contention_matrix));
 
   // Emplace request in contention with the last group
-  ASSERT_FALSE(group.EmplaceLockRequest(LockMode::WRITE, 3, contention_matrix));
+  ASSERT_FALSE(group.EmplaceLockRequest(3, LockMode::WRITE, contention_matrix));
 
   ASSERT_EQ(group.Size(), 2);
   ASSERT_EQ(group.GetLockRequest(1).GetMode(), LockMode::READ);
@@ -59,10 +59,10 @@ TEST_F(LockRequestGroupTestFixture, EmplaceGetRequest) {
 
 TEST_F(LockRequestGroupTestFixture, EmplaceRemoveRequest) {
   // Emplace request into an empty group
-  ASSERT_TRUE(group.EmplaceLockRequest(LockMode::READ, 1, contention_matrix));
+  ASSERT_TRUE(group.EmplaceLockRequest(1, LockMode::READ, contention_matrix));
 
   // Emplace request in agreement with the last group
-  ASSERT_TRUE(group.EmplaceLockRequest(LockMode::READ, 2, contention_matrix));
+  ASSERT_TRUE(group.EmplaceLockRequest(2, LockMode::READ, contention_matrix));
 
   ASSERT_EQ(group.Size(), 2);
 
