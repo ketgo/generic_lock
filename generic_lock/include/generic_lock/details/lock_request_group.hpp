@@ -22,46 +22,41 @@
 namespace gl {
 namespace details {
 
-// TODO: Remove the request group class and move all its methods in the request
-// queue. As can be seen from the below implementation, request group is simply
-// an IndexedList container.
-
 /**
- * @brief Group of lock request that are in agreement with each other such
- * that all the requests in the group can be granted simultaneously.
+ * Group of lock request that are in agreement with each other such that all the
+ * requests in the group can be granted simultaneously.
  *
- * @tparam LockModeType The lock mode type.
- * @tparam modes_count The number of lock modes.
- * @tparam ThreadIdType The type of thread identifier.
+ * @tparam TransactionId Transaction identifier type.
+ * @tparam LockMode Lock mode type.
+ * @tparam modes_count Number of lock modes.
  */
-template <class LockModeType, size_t modes_count, class ThreadIdType>
+template <class TransactionId, class LockMode, size_t modes_count>
 class LockRequestGroup {
-  typedef LockRequest<LockModeType> LockRequestType;
-  typedef IndexedList<ThreadIdType, LockRequestType> LockRequestListType;
+  typedef IndexedList<TransactionId, LockRequest<LockMode>> LockRequestList;
 
  public:
-  typedef typename LockRequestListType::Iterator Iterator;
-  typedef typename LockRequestListType::ConstIterator ConstIterator;
+  typedef typename LockRequestList::Iterator Iterator;
+  typedef typename LockRequestList::ConstIterator ConstIterator;
 
   /**
-   * @brief Construct a new Lock Request Group object
+   * Construct a new Lock Request Group object
    *
    */
   LockRequestGroup() = default;
 
   /**
-   * @brief Emplace a lock request into the group if there is no contention.
-   * The contention matrix is used to check for contention with any of the
-   * existing requests in the group. If a contention is found then the method
-   * returns `false, otherwise `true` is returned after emplacement.
+   * Emplace a lock request into the group if there is no contention. The
+   * contention matrix is used to check for contention with any of the existing
+   * requests in the group. If a contention is found then the method returns
+   * `false, otherwise `true` is returned after emplacement.
    *
+   * @param transaction_id Constant reference to the transaction identifier.
    * @param mode Constant reference to the lock mode.
-   * @param thread_id Constant reference to the thread identifier.
    * @param contention_matrix Constant reference to the contention matrix.
    * @returns `true` on success else `false`.
    */
   bool EmplaceLockRequest(
-      const LockModeType& mode, const ThreadIdType& thread_id,
+      const TransactionId& transaction_id, const LockMode& mode,
       const ContentionMatrix<modes_count>& contention_matrix) {
     // Check for contention with all the requests in the group which are not in
     // a denied state.
@@ -75,80 +70,82 @@ class LockRequestGroup {
       ++it;
     }
     // No contention found so emplace the request into the group
-    auto result = _requests.EmplaceBack(thread_id, mode);
+    auto result = _requests.EmplaceBack(transaction_id, mode);
+
     return result.second;
   }
 
   /**
-   * @brief Get the lock request in the group for the given thread identifier.
-   * If no such request exists then a `std::out_of_range` exception is thrown.
+   * Get the lock request in the group for the given transaction identifier. If
+   * no such request exists then a `std::out_of_range` exception is thrown.
    *
-   * @param thread_id Constant reference to the thread identifier.
+   * @param transaction_id Constant reference to the transaction identifier.
    * @returns Reference to the lock request.
    */
-  LockRequestType& GetLockRequest(const ThreadIdType& thread_id) {
-    return _requests.At(thread_id);
+  LockRequest<LockMode>& GetLockRequest(const TransactionId& transaction_id) {
+    return _requests.At(transaction_id);
   }
 
   /**
-   * @brief Get the lock request in the group for the given thread identifier.
-   * If no such request exists then a `std::out_of_range` exception is thrown.
+   * Get the lock request in the group for the given transaction identifier. If
+   * no such request exists then a `std::out_of_range` exception is thrown.
    *
-   * @param thread_id Constant reference to the thread identifier.
+   * @param transaction_id Constant reference to the transaction identifier.
    * @returns Constant reference to the lock request.
    */
-  const LockRequestType& GetLockRequest(const ThreadIdType& thread_id) const {
-    return _requests.At(thread_id);
+  const LockRequest<LockMode>& GetLockRequest(
+      const TransactionId& transaction_id) const {
+    return _requests.At(transaction_id);
   }
 
   /**
-   * @brief Remove lock request for the given thread identifier from the group.
-   * If no request exists for the thread identifier then a `std::out_of_range`
+   * Remove lock request for the given transaction identifier from the group. If
+   * no request exists for the transaction identifier then a `std::out_of_range`
    * exception is thrown.
    *
-   * @param thread_id Constant reference to the thread identifier.
+   * @param transaction_id Constant reference to the transaction identifier.
    */
-  void RemoveLockRequest(const ThreadIdType& thread_id) {
-    _requests.Erase(thread_id);
+  void RemoveLockRequest(const TransactionId& transaction_id) {
+    _requests.Erase(transaction_id);
   }
 
   /**
-   * @brief Get the number of requests in the group.
+   * Get the number of requests in the group.
    *
    * @returns Number of requests in the group.
    */
   size_t Size() const { return _requests.Size(); }
 
   /**
-   * @brief Check if the request group is empty.
+   * Check if the request group is empty.
    *
    * @returns `true` if empty else `false`.
    */
   bool Empty() const { return _requests.Empty(); }
 
   /**
-   * @brief Get an iterator pointing to the begining of the container.
+   * Get an iterator pointing to the begining of the container.
    *
    * @returns Iterator pointing to the begining of the container.
    */
   Iterator Begin() { return _requests.Begin(); }
 
   /**
-   * @brief Get a constant iterator pointing to the begining of the container.
+   * Get a constant iterator pointing to the begining of the container.
    *
    * @return Constant iterator pointing to the begining of the container.
    */
   ConstIterator Begin() const { return _requests.Begin(); }
 
   /**
-   * @brief Get an iterator pointing to the end of the container.
+   * Get an iterator pointing to the end of the container.
    *
    * @returns Iterator pointing to the end of the container.
    */
   Iterator End() { return _requests.End(); }
 
   /**
-   * @brief Get a constant iterator pointing to the end of the container.
+   * Get a constant iterator pointing to the end of the container.
    *
    * @returns Constant iterator pointing to the end of the container.
    */
@@ -156,7 +153,7 @@ class LockRequestGroup {
 
  private:
   // Indexed list of lock requests which are part of the group.
-  LockRequestListType _requests;
+  LockRequestList _requests;
 };
 
 }  // namespace details

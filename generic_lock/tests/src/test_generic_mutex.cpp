@@ -29,7 +29,7 @@ using namespace std::chrono_literals;
 class GenericMutexTestFixture : public ::testing::Test {
  protected:
   typedef size_t RecordId;
-  typedef size_t ThreadId;
+  typedef size_t TransactionId;
   static constexpr auto wait_between_operations = 5ms;
   static constexpr size_t timeout_ms = 1;
 
@@ -38,7 +38,7 @@ class GenericMutexTestFixture : public ::testing::Test {
   const ContentionMatrix<2> contention_matrix = {
       {{{false, true}}, {{true, true}}}};
 
-  typedef GenericMutex<RecordId, LockMode, 2, ThreadId, timeout_ms>
+  typedef GenericMutex<RecordId, TransactionId, LockMode, 2, timeout_ms>
       GenericMutexType;
   GenericMutexType mutex = {contention_matrix};
   // ----------------------------
@@ -51,15 +51,15 @@ class GenericMutexTestFixture : public ::testing::Test {
   // ---------------------------
   // Operation record
   struct OpRecord {
-    ThreadId thread_id;
+    TransactionId transaction_id;
     enum class Type { READ, WRITE } type;
     RecordId record_id;
     char value;
 
     OpRecord() = default;
-    OpRecord(const ThreadId& thread_id, const Type& type,
+    OpRecord(const TransactionId& transaction_id, const Type& type,
              const RecordId& record_id, const char& value)
-        : thread_id(thread_id),
+        : transaction_id(transaction_id),
           type(type),
           record_id(record_id),
           value(value) {}
@@ -78,17 +78,16 @@ class GenericMutexTestFixture : public ::testing::Test {
   // Lock request data
   struct LockRequest {
     RecordId record_id;
+    TransactionId transaction_id;
     LockMode mode;
-    ThreadId thread_id;
     size_t seq;
     bool granted;
 
-    LockRequest(const RecordId& record_id, const LockMode& mode,
-                const ThreadId& thread_id, const size_t& seq,
-                const bool& granted)
+    LockRequest(const RecordId& record_id, const TransactionId& transaction_id,
+                const LockMode& mode, const size_t& seq, const bool& granted)
         : record_id(record_id),
+          transaction_id(transaction_id),
           mode(mode),
-          thread_id(thread_id),
           seq(seq),
           granted(granted) {}
   };
@@ -115,26 +114,26 @@ class GenericMutexTestFixture : public ::testing::Test {
     for (size_t i = 0; i < op_record_group.size(); ++i) {
       auto& op_record = op_record_group[i];
       if (op_record.type == OpRecord::Type::READ) {
-        guards.emplace_back(mutex, op_record.record_id, LockMode::READ,
-                            op_record.thread_id);
+        guards.emplace_back(mutex, op_record.record_id,
+                            op_record.transaction_id, LockMode::READ);
         // Log lock request
-        lock_results_log.emplace(op_record.record_id, LockMode::READ,
-                                 op_record.thread_id, i, bool(guards.back()));
+        lock_results_log.emplace(op_record.record_id, op_record.transaction_id,
+                                 LockMode::READ, i, bool(guards.back()));
         // Perform operation
         auto value = records.at(op_record.record_id);
         // Log operation
-        op_log.emplace(op_record.thread_id, OpRecord::Type::READ,
+        op_log.emplace(op_record.transaction_id, OpRecord::Type::READ,
                        op_record.record_id, value);
       } else {
-        guards.emplace_back(mutex, op_record.record_id, LockMode::WRITE,
-                            op_record.thread_id);
+        guards.emplace_back(mutex, op_record.record_id,
+                            op_record.transaction_id, LockMode::WRITE);
         // Store lock result
-        lock_results_log.emplace(op_record.record_id, LockMode::WRITE,
-                                 op_record.thread_id, i, bool(guards.back()));
+        lock_results_log.emplace(op_record.record_id, op_record.transaction_id,
+                                 LockMode::WRITE, i, bool(guards.back()));
         // Perform operation
         records[op_record.record_id] = op_record.value;
         // Log operation
-        op_log.emplace(op_record.thread_id, OpRecord::Type::WRITE,
+        op_log.emplace(op_record.transaction_id, OpRecord::Type::WRITE,
                        op_record.record_id, op_record.value);
       }
       // Wait between operations
@@ -217,10 +216,10 @@ TEST_F(GenericMutexTestFixture, TestDedlockRecovery) {
   bool thread_1_all_granted = true;
   bool thread_2_all_granted = true;
   for (auto& lock_results : lock_results_log) {
-    if (lock_results.thread_id == 1) {
+    if (lock_results.transaction_id == 1) {
       thread_1_all_granted = thread_1_all_granted && lock_results.granted;
     }
-    if (lock_results.thread_id == 2) {
+    if (lock_results.transaction_id == 2) {
       thread_2_all_granted = thread_2_all_granted && lock_results.granted;
     }
   }
