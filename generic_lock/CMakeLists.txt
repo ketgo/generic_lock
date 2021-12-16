@@ -92,7 +92,8 @@ endif()
 # Unit testing
 # --------------------------------------------
 
-# Tests
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
+if(PROJECT_BUILD_TESTS)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
+endif()
 
 # --------------------------------------------

@@ -1,16 +1,18 @@
-# Updates Git submodules
-
-find_package(Git QUIET)
-if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-# Update submodules as needed
-    option(GIT_SUBMODULE "Check submodules during build" ON)
-    if(GIT_SUBMODULE)
-        message(STATUS "Submodule update")
-        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
-        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-            message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-        endif()
+# Function to update a git submodule.
+#
+# Example: 
+#    initialize_submodule(third_party/googletest)
+#    add_subdirectory(third_party/googletest)
+#
+function(initialize_submodule DIRECTORY)
+  find_package(Git QUIET REQUIRED)
+  if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+    message(STATUS "Updating ${DIRECTORY} submodule ...")
+    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init ${DIRECTORY}
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    RESULT_VARIABLE GIT_EXIT_CODE)
+    if(NOT GIT_EXIT_CODE EQUAL "0")
+      message(FATAL_ERROR "${GIT_EXECUTABLE} submodule update --init dependencies/${DIRECTORY} failed with exit code ${GIT_EXIT_CODE}, please checkout submodules")
     endif()
-endif()
+  endif()
+endfunction(initialize_submodule)

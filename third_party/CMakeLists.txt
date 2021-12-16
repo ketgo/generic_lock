@@ -14,8 +14,10 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-# Update git submodules
-include(GitSubmodules)
-
 # List of dependencies
-add_subdirectory(googletest)
+
+# Unit test dependencies
+if(PROJECT_BUILD_TESTS)
+    initialize_submodule(${PROJECT_SOURCE_DIR}/third_party/googletest)
+    add_subdirectory(googletest)
+endif()
