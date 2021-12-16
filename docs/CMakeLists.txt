@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.1)
 
+# Check CMake option for building docs
+if(NOT PROJECT_BUILD_DOCS)
+    return()
+endif()
+
 # Documentation
 include(doxygen)
 

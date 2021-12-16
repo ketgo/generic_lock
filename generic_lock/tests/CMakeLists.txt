@@ -14,6 +14,8 @@
 
 cmake_minimum_required(VERSION 3.1)
 
+include(code-coverage)
+
 # Get source files
 file(
     GLOB_RECURSE 

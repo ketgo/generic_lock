@@ -29,24 +29,14 @@ if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
   set(MAIN_PROJECT ON)
 endif()
 
-option(PROJECT_BUILD_TESTS "Build the unit tests when BUILD_TESTING is enabled." ${MAIN_PROJECT})
-option(PROJECT_BUILD_INSTALL "Install CMake targets during install step." ${MAIN_PROJECT})
-
+option(PROJECT_BUILD_TESTS "Setup unit tests build targets." ${MAIN_PROJECT})
+option(PROJECT_BUILD_DOCS "Setup docs build targets." ${MAIN_PROJECT})
+option(PROJECT_BUILD_INSTALL "Setup install CMake targets." ${MAIN_PROJECT})
 
 if(PROJECT_BUILD_TESTS)
     # Enable testing
     enable_testing()
 endif()
-
-# ------------------------------------------------
-# Including CMake Modules
-# -------------------------------------------------
-
-include(c++-standards)
-include(code-coverage)
-include(sanitizers)
-include(tools)
-include(GitSubmodules)
 
 # --------------------------------------------------
 

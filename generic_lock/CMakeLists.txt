@@ -14,6 +14,10 @@
 
 cmake_minimum_required(VERSION 3.1)
 
+include(c++-standards)
+include(sanitizers)
+include(tools)
+
 # Require C++17
 cxx_17()
 
